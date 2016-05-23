@@ -1,0 +1,39 @@
+{
+  "name": "tenji-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm-run-all build:tsc build:webpack",
+    "build:tsc": "tsc",
+    "build:webpack": "webpack",
+    "watch": "npm-run-all --parallel watch:*",
+    "watch:tsc": "tsc --watch",
+    "watch:webpack": "webpack-dev-server",
+    "github-publish": "git subtree push --prefix=dist origin gh-pages",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uhyo/tenji-web.git"
+  },
+  "keywords": [
+    "tenji"
+  ],
+  "author": "uhyo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/uhyo/tenji-web/issues"
+  },
+  "homepage": "https://github.com/uhyo/tenji-web",
+  "devDependencies": {
+    "file-loader": "^0.8.5",
+    "json-loader": "^0.5.4",
+    "npm-run-all": "^2.1.1",
+    "tenji": "^1.0.1",
+    "typescript": "^1.8.10",
+    "webpack": "^1.13.1",
+    "webpack-dev-server": "^1.14.1"
+  }
+}
