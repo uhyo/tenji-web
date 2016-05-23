@@ -1,0 +1,16717 @@
+/******/ (function(modules) { // webpackBootstrap
+/******/ 	// The module cache
+/******/ 	var installedModules = {};
+/******/
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/
+/******/ 		// Check if module is in cache
+/******/ 		if(installedModules[moduleId])
+/******/ 			return installedModules[moduleId].exports;
+/******/
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = installedModules[moduleId] = {
+/******/ 			exports: {},
+/******/ 			id: moduleId,
+/******/ 			loaded: false
+/******/ 		};
+/******/
+/******/ 		// Execute the module function
+/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/ 		// Flag the module as loaded
+/******/ 		module.loaded = true;
+/******/
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/
+/******/
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = modules;
+/******/
+/******/ 	// expose the module cache
+/******/ 	__webpack_require__.c = installedModules;
+/******/
+/******/ 	// __webpack_public_path__
+/******/ 	__webpack_require__.p = "";
+/******/
+/******/ 	// Load entry module and return exports
+/******/ 	return __webpack_require__(0);
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var tenji_1 = __webpack_require__(1);
+	(function () {
+	    var tob = document.getElementById('to-button');
+	    var fob = document.getElementById('from-button');
+	    var jpt = document.getElementById('jp-text');
+	    var tjt = document.getElementById('tenji-text');
+	    var kjf = document.getElementById('kantenji-flag');
+	    tob.addEventListener('click', function (e) {
+	        tjt.value = tenji_1.toTenji(jpt.value, {
+	            kanji: kjf.checked,
+	        });
+	    });
+	    fob.addEventListener('click', function (e) {
+	        jpt.value = tenji_1.fromTenji(tjt.value, {
+	            kanji: kjf.checked,
+	        });
+	    });
+	})();
+
+
+/***/ },
+/* 1 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	function __export(m) {
+	    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+	}
+	__export(__webpack_require__(2));
+	__export(__webpack_require__(4));
+
+
+/***/ },
+/* 2 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var table_1 = __webpack_require__(3);
+	var NORMAL_MODE = 0;
+	var NUMBER_MODE = 1;
+	var ALPHABET_MODE = 2;
+	//カタカナ状態（漢点字）
+	var KATAKANA_MODE = 3;
+	function toTenji(text, options) {
+	    if (options === void 0) { options = {}; }
+	    if (!options.noNormalize) {
+	        text = text.normalize('NFKC');
+	    }
+	    //options
+	    var preserveSpaces = options.preserveSpaces || false;
+	    var kanji = options.kanji || options['漢点字'] || false;
+	    //漢点字のときは下を強制
+	    var lowerDots = kanji || options.lowerDots || false;
+	    var code = [];
+	    //空白を入れる予約
+	    var spaces = 0;
+	    //モード
+	    var mode = NORMAL_MODE;
+	    for (var i = 0, l = text.length; i < l; i++) {
+	        var c = text.charAt(i);
+	        if (/\r|\n/.test(c)) {
+	            //行末のスペースは消す
+	            spaces = 0;
+	        }
+	        while (spaces > 0) {
+	            code.push(0);
+	            spaces--;
+	        }
+	        if (kanji) {
+	            if (/^[\u30a1-\u30f6]$/.test(c)) {
+	                if (mode !== KATAKANA_MODE) {
+	                    //カタカナ符のあれ
+	                    code.push(nonkanji(0x16));
+	                    mode = KATAKANA_MODE;
+	                }
+	            }
+	            else if (c !== 'ー' && mode === KATAKANA_MODE) {
+	                code.push(nonkanji(0x06));
+	                mode = NORMAL_MODE;
+	            }
+	        }
+	        c = katakanaToHiragana(c);
+	        if (/^[\u3041-\u3096]$/.test(c)) {
+	            //前につける符号
+	            var sub = 0;
+	            var c2 = katakanaToHiragana(text.charAt(i + 1));
+	            if ((c2 === 'ゃ' || c2 === 'ゅ' || c2 === 'ょ' || c2 === 'ぇ') && (c in table_1.yoonTable)) {
+	                //拗音
+	                sub = 8;
+	                c = table_1.yoonTable[c].charAt('ゃゅょぇ'.indexOf(c2));
+	                i++;
+	            }
+	            else if ((c2 === 'ぁ' || c2 === 'ぃ' || c2 === 'ぇ' || c2 === 'ぉ') && (c in table_1.goyoonTable)) {
+	                //合拗音
+	                sub = 0x22;
+	                c = table_1.goyoonTable[c].charAt('ぁぃぇぉ'.indexOf(c2));
+	                i++;
+	            }
+	            else if (c2 === 'ぇ' && c === 'い') {
+	                //特例処理
+	                sub = 8;
+	                c = 'え';
+	                i++;
+	            }
+	            else if (c2 === 'ぃ' && (c === 'す' || c === 'て')) {
+	                sub = 8;
+	                c = (c === 'す' ? 'し' : 'ち');
+	                i++;
+	            }
+	            else if (c2 === 'ぃ' && (c === 'ず' || c === 'で')) {
+	                sub = 0x18;
+	                c = (c === 'ず' ? 'じ' : 'ぢ');
+	                i++;
+	            }
+	            else if (c2 === 'ぅ' && (c === 'と' || c === 'ど')) {
+	                //トゥットゥルー
+	                sub = c === 'と' ? 0x22 : 0x32;
+	                c = 'つ';
+	                i++;
+	            }
+	            else if (c2 === 'ゅ' && c === 'て') {
+	                sub = 0x28;
+	                c = 'つ';
+	                i++;
+	            }
+	            else if (c2 === 'ゅ' && c === 'で') {
+	                sub = 0x38;
+	                c = 'つ';
+	                i++;
+	            }
+	            else if (c2 === 'ゅ' && c === 'ふ') {
+	                sub = 0x28;
+	                c = 'ゆ';
+	                i++;
+	            }
+	            else if (c2 === 'ゅ' && c === 'ゔ') {
+	                sub = 0x38;
+	                c = 'ゆ';
+	                i++;
+	            }
+	            else if (c2 === 'ょ' && c === 'ふ') {
+	                sub = 0x28;
+	                c = 'よ';
+	                i++;
+	            }
+	            else if (c2 === 'ょ' && c === 'ゔ') {
+	                sub = 0x38;
+	                c = 'よ';
+	                i++;
+	            }
+	            else if (c === 'ゔ') {
+	                sub = 0x10;
+	                c = 'う';
+	            }
+	            else if (kanji && (c === 'ゐ' || c === 'ゑ')) {
+	                //漢点字の場合変わる
+	                sub = 0x28;
+	                c = c === 'ゐ' ? 'い' : 'え';
+	            }
+	            else if (kanji && (c === 'ゕ' || c === 'ゖ')) {
+	                //漢点字で新たに定義?
+	                sub = 0x28;
+	                c = c === 'ゕ' ? 'か' : 'け';
+	            }
+	            if (mode === ALPHABET_MODE) {
+	                //英語→日本語
+	                code.push(nonkanji(0x24));
+	                mode = NORMAL_MODE;
+	            }
+	            //conversion of Hiragana
+	            if (table_1.dakuonList.indexOf(c) >= 0) {
+	                //濁音 mark
+	                code.push(nonkanji(sub | 0x10), nonkanji(table_1.hiraganaTable[String.fromCharCode(c.charCodeAt(0) - 1)]));
+	            }
+	            else if (table_1.handakuonList.indexOf(c) >= 0) {
+	                //濁音 mark
+	                code.push(nonkanji(sub | 0x20), nonkanji(table_1.hiraganaTable[String.fromCharCode(c.charCodeAt(0) - 2)]));
+	            }
+	            else if (c in table_1.hiraganaTable) {
+	                if (sub !== 0) {
+	                    code.push(nonkanji(sub));
+	                }
+	                else if (mode === NUMBER_MODE && 'あいうえおらりるれろ'.indexOf(c) >= 0) {
+	                    //数値のあとにあ行・ら行の場合は第1つなぎ符を挿入
+	                    code.push(nonkanji(0x24));
+	                }
+	                code.push(nonkanji(table_1.hiraganaTable[c]));
+	            }
+	            else {
+	                //だめだった
+	                code.push(c);
+	            }
+	            if (mode !== KATAKANA_MODE) {
+	                mode = NORMAL_MODE;
+	            }
+	        }
+	        else if (c in table_1.kigouTable) {
+	            code.push.apply(code, nonkanjis(table_1.kigouTable[c]));
+	            if (c !== 'ー') {
+	                mode = NORMAL_MODE;
+	            }
+	        }
+	        else if (c === '、') {
+	            code.push(nonkanji(0x30));
+	            spaces = 1;
+	            mode = NORMAL_MODE;
+	        }
+	        else if (c === '。') {
+	            code.push(nonkanji(0x32));
+	            spaces = 2;
+	            mode = NORMAL_MODE;
+	        }
+	        else if (c === '・') {
+	            code.push(nonkanji(0x10));
+	            spaces = 1;
+	            mode = NORMAL_MODE;
+	        }
+	        else if (/^[0-9]$/.test(c)) {
+	            //数字
+	            if (mode !== NUMBER_MODE) {
+	                //数符
+	                code.push(nonkanji(0x3c));
+	                mode = NUMBER_MODE;
+	            }
+	            code.push(nonkanji(table_1.numberTable[c]));
+	        }
+	        else if (mode === NUMBER_MODE && c === '.') {
+	            //小数点
+	            code.push(nonkanji(0x02));
+	        }
+	        else if (mode === NUMBER_MODE && c === ',') {
+	            //位取り点
+	            code.push(nonkanji(0x04));
+	        }
+	        else if (/^[a-zA-Z]$/.test(c)) {
+	            //アルファベット
+	            if (mode !== ALPHABET_MODE) {
+	                //外字符
+	                code.push(nonkanji(0x30));
+	                mode = ALPHABET_MODE;
+	            }
+	            var cd = c.charCodeAt(0);
+	            if (cd <= 0x5a) {
+	                //大文字なので大文字符（TODO: 二重大文字符は？）
+	                code.push(nonkanji(0x20));
+	                cd += 0x20;
+	            }
+	            code.push(nonkanji(table_1.alphabetTable[cd - 0x61]));
+	        }
+	        else if (kanji && c in table_1.kanjiTable) {
+	            //漢点字
+	            if (mode === ALPHABET_MODE) {
+	                //英語→日本語
+	                code.push(nonkanji(0x24));
+	                mode = NORMAL_MODE;
+	            }
+	            code.push.apply(code, table_1.kanjiTable[c]);
+	        }
+	        else if (!preserveSpaces && /\s/.test(c) && !/\r|\n/.test(c)) {
+	            code.push(nonkanji(0));
+	        }
+	        else {
+	            code.push(text.charAt(i));
+	        }
+	    }
+	    //後始末
+	    if (kanji && mode === KATAKANA_MODE) {
+	        //ひらがなに戻る
+	        code.push(nonkanji(0x06));
+	    }
+	    return codeToTenjiString(code);
+	    function nonkanji(code) {
+	        if (lowerDots) {
+	            return (code & 3) << 1 | (code & 24) << 1 | (code & 4) << 4 | (code & 32) << 2;
+	        }
+	        else {
+	            return code;
+	        }
+	    }
+	    function nonkanjis(code) {
+	        return code.map(nonkanji);
+	    }
+	}
+	exports.toTenji = toTenji;
+	function katakanaToHiragana(c) {
+	    if (/^[\u30a1-\u30f6]$/.test(c)) {
+	        //detect katakana
+	        return String.fromCharCode(c.charCodeAt(0) - 0x60);
+	    }
+	    return c;
+	}
+	function codeToTenjiString(code) {
+	    var result = '';
+	    for (var i = 0, l = code.length; i < l; i++) {
+	        var c = code[i];
+	        if ('number' === typeof c) {
+	            result += String.fromCharCode(0x2800 + c);
+	        }
+	        else {
+	            result += c;
+	        }
+	    }
+	    return result;
+	}
+
+
+/***/ },
+/* 3 */
+/***/ function(module, exports) {
+
+	"use strict";
+	//清音のテーブル
+	exports.hiraganaTable = {
+	    'あ': 0x01,
+	    'い': 0x03,
+	    'う': 0x09,
+	    'え': 0x0b,
+	    'お': 0x0a,
+	    'か': 0x21,
+	    'き': 0x23,
+	    'く': 0x29,
+	    'け': 0x2b,
+	    'こ': 0x2a,
+	    'さ': 0x31,
+	    'し': 0x33,
+	    'す': 0x39,
+	    'せ': 0x3b,
+	    'そ': 0x3a,
+	    'た': 0x15,
+	    'ち': 0x17,
+	    'つ': 0x1d,
+	    'て': 0x1f,
+	    'と': 0x1e,
+	    'な': 0x05,
+	    'に': 0x07,
+	    'ぬ': 0x0d,
+	    'ね': 0x0f,
+	    'の': 0x0e,
+	    'は': 0x25,
+	    'ひ': 0x27,
+	    'ふ': 0x2d,
+	    'へ': 0x2f,
+	    'ほ': 0x2e,
+	    'ま': 0x35,
+	    'み': 0x37,
+	    'む': 0x3d,
+	    'め': 0x3f,
+	    'も': 0x3e,
+	    'や': 0x0c,
+	    'ゆ': 0x2c,
+	    'よ': 0x1c,
+	    'ら': 0x11,
+	    'り': 0x13,
+	    'る': 0x19,
+	    'れ': 0x1b,
+	    'ろ': 0x1a,
+	    'わ': 0x04,
+	    'ゐ': 0x06,
+	    'ゑ': 0x16,
+	    'を': 0x14,
+	    'ん': 0x34,
+	    'っ': 0x02,
+	};
+	//濁音の一覧
+	exports.dakuonList = 'がぎぐげござじずぜぞだぢづでどばびぶべぼ';
+	exports.handakuonList = 'ぱぴぷぺぽ';
+	//拗音→メイン音変換テーブル
+	exports.yoonTable = {
+	    'き': 'かくこけ',
+	    'し': 'さすそせ',
+	    'ち': 'たつとて',
+	    'に': 'なぬのね',
+	    'ひ': 'はふほへ',
+	    'み': 'まむもめ',
+	    'り': 'らるろれ',
+	    'ぎ': 'がぐごげ',
+	    'じ': 'ざずぞぜ',
+	    'ぢ': 'だづどで',
+	    'び': 'ばぶぼべ',
+	    'ぴ': 'ぱぷぽぺ',
+	};
+	//合拗音
+	exports.goyoonTable = {
+	    'う': 'あいえお',
+	    'く': 'かきけこ',
+	    'つ': 'たちてと',
+	    'ふ': 'はひへほ',
+	    'ぐ': 'がぎげご',
+	    'ゔ': 'ばびべぼ',
+	};
+	//記号
+	exports.kigouTable = {
+	    'ー': [0x12],
+	    '?': [0x22],
+	    '!': [0x16],
+	    '(': [0x10, 0x36],
+	    ')': [0x36, 0x02],
+	    '「': [0x30, 0x04],
+	    '」': [0x20, 0x06],
+	    '『': [0x30, 0x24],
+	    '』': [0x24, 0x06],
+	    '%': [0x30, 0x0f],
+	    '&': [0x30, 0x2f],
+	    '#': [0x30, 0x29],
+	    '*': [0x30, 0x21],
+	};
+	//数値
+	exports.numberTable = [0x1a, 0x01, 0x03, 0x09, 0x19, 0x11, 0x0b, 0x1b, 0x13, 0x0a];
+	//アルファベット（aから）
+	exports.alphabetTable = [
+	    0x01, 0x03, 0x09, 0x19, 0x11, 0x0b, 0x1b, 0x13, 0x0a, 0x1a,
+	    0x05, 0x07, 0x0d, 0x1d, 0x15, 0x0f, 0x1f, 0x17, 0x0e, 0x1e,
+	    0x25, 0x27, 0x3a, 0x2d, 0x3d, 0x35,
+	];
+	//data below is taken from http://wentwayup.tamaliver.jp/e405340.html
+	/*
+	(()=>{
+	    const result = {};
+	    const t = document.querySelector('#content > div > div.blogbody > div:nth-child(1) > div > table');
+	    for(let i=1; i < t.rows.length; i++){
+	        const r = t.rows[i];
+	        const k = r.cells[0].textContent.replace(/\s|\u2800/g,'');
+	        const tenj = r.cells[1].textContent.replace(/\s|\u2800/g,'');
+	        const codes = tenj.split('').map(char => char.charCodeAt(0)-0x2800);
+	        result[k] = codes;
+	    }
+	    //整形
+	    const keys = Object.keys(result).sort();
+	    let str = 'const kanjiTable = {\n';
+	    keys.forEach(k=>{
+	        const cs = result[k].map(code=> '0x'+('00'+code.toString(16)).slice(-2)).join(', ');
+	        str += `    '${k}': [${cs}],\n`;
+	    });
+	    str+='};';
+	    document.body.textContent=str;
+	    document.body.style.whiteSpace='pre';
+	})();
+	*/
+	exports.kanjiTable = {
+	    '一': [0xa1, 0x0a],
+	    '丁': [0xa1, 0x7e],
+	    '七': [0xa1, 0x3e],
+	    '万': [0xa1, 0xea],
+	    '丈': [0x31, 0xf8],
+	    '三': [0xa1, 0x1a],
+	    '上': [0x31, 0x1a],
+	    '下': [0x31, 0xc8],
+	    '不': [0x11, 0xda],
+	    '与': [0x25, 0x18],
+	    '丐': [0xe1, 0x24, 0xfc],
+	    '丑': [0x81, 0xbc],
+	    '且': [0x21, 0xbc],
+	    '丕': [0xd3, 0xa0, 0x0a],
+	    '世': [0x35, 0x78],
+	    '丗': [0xa1, 0x78],
+	    '丘': [0x93, 0x18],
+	    '丙': [0xa1, 0xde],
+	    '丞': [0x81, 0x4e],
+	    '両': [0x67, 0x18],
+	    '並': [0xe3, 0xea],
+	    '个': [0x27, 0x90, 0x2c],
+	    '中': [0x31, 0x2c],
+	    '丱': [0x75, 0x24, 0x98],
+	    '串': [0x37, 0x24, 0xec],
+	    '丶': [0x0d],
+	    '丸': [0x03, 0x1c],
+	    '丹': [0xd3, 0x18],
+	    '主': [0xd7, 0x48],
+	    '丼': [0x07, 0x0c],
+	    '丿': [0x05, 0x24, 0x2c],
+	    '乂': [0x41, 0xfe],
+	    '乃': [0x03, 0x4c],
+	    '久': [0xb3, 0x18],
+	    '之': [0x21, 0x5c],
+	    '乍': [0x81, 0xaa],
+	    '乎': [0x11, 0x58],
+	    '乏': [0x05, 0x5c],
+	    '乕': [0x81, 0x80, 0xba],
+	    '乖': [0x03, 0x54, 0x8e],
+	    '乗': [0x55, 0x8e],
+	    '乘': [0x55, 0x54, 0x8e],
+	    '乙': [0xa1, 0x68],
+	    '九': [0xa1, 0x1c],
+	    '乞': [0xc1, 0x1c],
+	    '也': [0x11, 0x6e],
+	    '乢': [0x51, 0xa0, 0x68],
+	    '乱': [0xb7, 0x68],
+	    '乳': [0x67, 0x68],
+	    '乾': [0x35, 0x68],
+	    '亀': [0x31, 0xfe],
+	    '亂': [0xb7, 0xb6, 0x68],
+	    '亅': [0x25, 0x24, 0xc8],
+	    '了': [0x11, 0xea],
+	    '予': [0x11, 0x78],
+	    '争': [0xb5, 0x2c],
+	    '亊': [0x95, 0x94, 0x7c],
+	    '事': [0x95, 0x7c],
+	    '二': [0xa1, 0x0e],
+	    '于': [0x03, 0x8a],
+	    '云': [0x41, 0x1e],
+	    '互': [0x31, 0x8c],
+	    '五': [0xa1, 0x2a],
+	    '井': [0x21, 0x0e],
+	    '亘': [0x21, 0xcc],
+	    '亙': [0x31, 0x2a],
+	    '些': [0x31, 0x38],
+	    '亜': [0x03, 0x0a],
+	    '亞': [0x03, 0x02, 0x0a],
+	    '亟': [0x03, 0xea],
+	    '亠': [0x03, 0xc8],
+	    '亡': [0x21, 0xdc],
+	    '亢': [0x21, 0x2c],
+	    '交': [0xc1, 0x6e],
+	    '亥': [0x21, 0x4c],
+	    '亦': [0x11, 0x1e],
+	    '亨': [0xc1, 0xea],
+	    '享': [0xc1, 0x9c],
+	    '京': [0xc1, 0x3e],
+	    '亭': [0x81, 0x7e],
+	    '亮': [0x13, 0xec],
+	    '亰': [0x03, 0xc0, 0x3e],
+	    '亳': [0xc1, 0x12, 0x4a],
+	    '亶': [0x81, 0xec],
+	    '人': [0x4b],
+	    '什': [0x43, 0x24, 0x3c],
+	    '仁': [0x99],
+	    '仂': [0x43, 0x24, 0x5a],
+	    '仄': [0x91, 0x78],
+	    '仆': [0x43, 0x24, 0x7c],
+	    '仇': [0x15, 0x98],
+	    '今': [0x27, 0x0a],
+	    '介': [0x91, 0x2c],
+	    '仍': [0x43, 0x02, 0x4c],
+	    '从': [0x43, 0x24, 0x98],
+	    '仏': [0x91, 0xfe],
+	    '仔': [0x91, 0x9c],
+	    '仕': [0x43, 0x7a],
+	    '他': [0x43, 0x6e],
+	    '仗': [0x43, 0x30, 0xf8],
+	    '付': [0x43, 0xae],
+	    '仙': [0x91, 0x50, 0x0a],
+	    '仞': [0x43, 0x02, 0x5a],
+	    '仟': [0x43, 0xa0, 0xbe],
+	    '代': [0x91, 0xec],
+	    '令': [0x91, 0x3c],
+	    '以': [0x11, 0xfc],
+	    '仭': [0x91, 0x02, 0x5a],
+	    '仮': [0x43, 0xe8],
+	    '仰': [0x43, 0xaa],
+	    '仲': [0x43, 0x2c],
+	    '件': [0x43, 0xbc],
+	    '价': [0x43, 0x90, 0x2c],
+	    '任': [0x91, 0x4e],
+	    '企': [0x91, 0xe8],
+	    '伉': [0x43, 0x24, 0x2c],
+	    '伊': [0x07, 0x4a],
+	    '伍': [0x43, 0xa0, 0x2a],
+	    '伎': [0x43, 0x24, 0xca],
+	    '伏': [0x43, 0x9e],
+	    '伐': [0x03, 0xec],
+	    '休': [0x43, 0x8e],
+	    '会': [0x27, 0x1e],
+	    '伜': [0x91, 0x14, 0x3c],
+	    '伝': [0x43, 0x7e],
+	    '伯': [0x91, 0xcc],
+	    '估': [0x43, 0x36, 0x3c],
+	    '伴': [0x91, 0xca],
+	    '伶': [0x43, 0x90, 0x3c],
+	    '伸': [0x91, 0xae],
+	    '伺': [0x43, 0x98],
+	    '似': [0x43, 0xfc],
+	    '伽': [0x91, 0x3e],
+	    '佃': [0x63, 0x4a],
+	    '但': [0x43, 0xcc],
+	    '佇': [0x91, 0x24, 0x7e],
+	    '位': [0x43, 0xea],
+	    '低': [0x31, 0xe8],
+	    '住': [0x43, 0xde],
+	    '佐': [0x91, 0x4c],
+	    '佑': [0x43, 0x30, 0xa8],
+	    '体': [0x43, 0x88],
+	    '何': [0x43, 0x8a],
+	    '佗': [0x91, 0xce],
+	    '余': [0x27, 0xfc],
+	    '佚': [0x43, 0x80, 0x9e],
+	    '佛': [0x91, 0x90, 0xfe],
+	    '作': [0x91, 0xaa],
+	    '佝': [0x43, 0xf4, 0x28],
+	    '佞': [0x91, 0x24, 0xda],
+	    '佩': [0x43, 0xf2, 0xae],
+	    '佯': [0x43, 0xb4, 0x0c],
+	    '佰': [0x43, 0xa0, 0xfe],
+	    '佳': [0x91, 0x7a],
+	    '併': [0x43, 0x7c],
+	    '佶': [0x43, 0x72, 0x3e],
+	    '佻': [0x43, 0xa0, 0x2c],
+	    '佼': [0x43, 0xc0, 0x6e],
+	    '使': [0x91, 0x98],
+	    '侃': [0x43, 0x36, 0x1a],
+	    '來': [0x87, 0x86, 0x4a],
+	    '侈': [0x43, 0xd4, 0xdc],
+	    '例': [0x43, 0x5a],
+	    '侍': [0xa7, 0x4a],
+	    '侏': [0x43, 0x20, 0x8a],
+	    '侑': [0x43, 0x34, 0x2a],
+	    '侖': [0x21, 0x3a],
+	    '侘': [0x43, 0x12, 0x4a],
+	    '供': [0x43, 0x9c],
+	    '依': [0x57, 0x4a],
+	    '侠': [0x43, 0x24, 0x4a],
+	    '価': [0x43, 0x4e],
+	    '侫': [0x91, 0xd4, 0xda],
+	    '侭': [0x43, 0xd2, 0xf8],
+	    '侮': [0x43, 0xca],
+	    '侯': [0x91, 0x58],
+	    '侵': [0x91, 0x6c],
+	    '侶': [0x91, 0xee],
+	    '便': [0x91, 0x4a],
+	    '係': [0x43, 0x4c],
+	    '促': [0x43, 0xee],
+	    '俄': [0x43, 0xe4, 0x0a],
+	    '俊': [0x43, 0xfa],
+	    '俎': [0x43, 0x20, 0xbc],
+	    '俐': [0x43, 0x54, 0x5a],
+	    '俑': [0x91, 0x24, 0x7a],
+	    '俔': [0x43, 0xf6, 0x2c],
+	    '俗': [0x43, 0x6a],
+	    '俘': [0x43, 0x24, 0x1a],
+	    '俚': [0x43, 0x30, 0x2e],
+	    '俛': [0x43, 0x52, 0x2c],
+	    '保': [0x43, 0x3e],
+	    '俟': [0x43, 0x80, 0xfa],
+	    '信': [0x43, 0x1e],
+	    '俣': [0x43, 0x02, 0x9e],
+	    '俤': [0x43, 0xd0, 0x2c],
+	    '俥': [0x43, 0x24, 0xfa],
+	    '修': [0x43, 0x1a],
+	    '俯': [0x43, 0x78],
+	    '俳': [0x43, 0xf8],
+	    '俵': [0x91, 0x5e],
+	    '俶': [0x43, 0x12, 0x6c],
+	    '俸': [0x43, 0x96, 0xdc],
+	    '俺': [0x91, 0xac],
+	    '俾': [0x43, 0x62, 0xaa],
+	    '倅': [0x43, 0x14, 0x3c],
+	    '倆': [0x43, 0x66, 0x18],
+	    '倉': [0x27, 0x1c],
+	    '個': [0x43, 0xec],
+	    '倍': [0x91, 0xea],
+	    '倏': [0x43, 0xc0, 0x9e],
+	    '們': [0x43, 0x24, 0xfc],
+	    '倒': [0x43, 0xd8],
+	    '倔': [0x43, 0x74, 0xde],
+	    '倖': [0x43, 0x72, 0x8a],
+	    '候': [0x43, 0x58],
+	    '倚': [0x43, 0x96, 0x8a],
+	    '借': [0x43, 0x5e],
+	    '倡': [0x43, 0x26, 0xcc],
+	    '倣': [0x91, 0xdc],
+	    '値': [0x43, 0xfe],
+	    '倥': [0x43, 0x12, 0x8e],
+	    '倦': [0x43, 0x96, 0xaa],
+	    '倨': [0x43, 0x74, 0x0a],
+	    '倩': [0x43, 0xa6, 0xbe],
+	    '倪': [0x43, 0x94, 0x2c],
+	    '倫': [0x43, 0x3a],
+	    '倬': [0x43, 0xc4, 0x7c],
+	    '倭': [0x43, 0x54, 0xda],
+	    '倶': [0x43, 0x60, 0x28],
+	    '倹': [0x91, 0x2e],
+	    '偃': [0x43, 0xc0, 0xfc],
+	    '假': [0x43, 0x42, 0xe8],
+	    '偈': [0x43, 0x24, 0xb8],
+	    '偉': [0x43, 0x0e],
+	    '偏': [0x91, 0xde],
+	    '偐': [0x43, 0x70, 0x1a],
+	    '偕': [0x43, 0x30, 0xcc],
+	    '偖': [0x43, 0x74, 0xcc],
+	    '做': [0x43, 0x36, 0xb8],
+	    '停': [0x91, 0x7e],
+	    '健': [0x43, 0xda],
+	    '偬': [0x43, 0x24, 0x9c],
+	    '偲': [0x91, 0x3a],
+	    '側': [0x91, 0x5a],
+	    '偵': [0x91, 0x7c],
+	    '偶': [0x43, 0x9a],
+	    '偸': [0x43, 0x24, 0xd8],
+	    '偽': [0x91, 0xf8],
+	    '傀': [0x43, 0x14, 0x4e],
+	    '傅': [0x43, 0x24, 0x7e],
+	    '傍': [0x43, 0xdc],
+	    '傑': [0x91, 0x9e],
+	    '傘': [0x27, 0x4a],
+	    '備': [0x43, 0xce],
+	    '傚': [0x91, 0x24, 0xb8],
+	    '催': [0x91, 0x0e],
+	    '傭': [0x43, 0x70, 0xec],
+	    '傲': [0x43, 0x24, 0xdc],
+	    '傳': [0x43, 0x42, 0x7e],
+	    '傴': [0x91, 0xf4, 0x48],
+	    '債': [0x43, 0x68],
+	    '傷': [0x91, 0xa8],
+	    '傾': [0x43, 0x1c],
+	    '僂': [0x43, 0x24, 0x3a],
+	    '僅': [0x91, 0x8e],
+	    '僉': [0x81, 0x2e],
+	    '僊': [0x91, 0x24, 0xaa],
+	    '働': [0x43, 0x2e],
+	    '像': [0x91, 0x88],
+	    '僑': [0x91, 0x5c],
+	    '僕': [0x43, 0x4a],
+	    '僖': [0x43, 0x72, 0xec],
+	    '僚': [0x43, 0x3c],
+	    '僞': [0x91, 0x90, 0xf8],
+	    '僣': [0x43, 0xc4, 0x9e],
+	    '僥': [0x43, 0x24, 0x7a],
+	    '僧': [0x91, 0xbc],
+	    '僭': [0x91, 0xc4, 0x9e],
+	    '僮': [0x43, 0xe2, 0x2e],
+	    '僵': [0x43, 0x24, 0x6a],
+	    '價': [0x43, 0x42, 0x4e],
+	    '僻': [0x43, 0x24, 0xea],
+	    '儀': [0xb5, 0x4a],
+	    '儁': [0x43, 0x24, 0x0e],
+	    '儂': [0x43, 0x62, 0x3c],
+	    '億': [0xa1, 0x4a],
+	    '儉': [0x91, 0x90, 0x2e],
+	    '儒': [0x43, 0x5c],
+	    '儔': [0x43, 0xd6, 0xae],
+	    '儕': [0x43, 0xa2, 0xc8],
+	    '儖': [0x43, 0xb2, 0x8c],
+	    '儘': [0x91, 0xd2, 0xf8],
+	    '儚': [0x43, 0xc0, 0xdc],
+	    '償': [0x91, 0x68],
+	    '儡': [0x43, 0x62, 0x6a],
+	    '優': [0x31, 0xd8],
+	    '儲': [0x91, 0x1e],
+	    '儷': [0x43, 0xe4, 0x38],
+	    '儺': [0x43, 0x92, 0x0e],
+	    '儻': [0x43, 0xc0, 0x2c],
+	    '儼': [0x43, 0x70, 0xb8],
+	    '儿': [0x11, 0x2c],
+	    '兀': [0x03, 0x02, 0x2c],
+	    '允': [0xf3, 0x24, 0xc8],
+	    '元': [0x03, 0x2c],
+	    '兄': [0x37, 0x2c],
+	    '充': [0xc1, 0xc8],
+	    '兆': [0xa1, 0x2c],
+	    '兇': [0x25, 0xf4, 0x88],
+	    '先': [0x73, 0xc8],
+	    '光': [0xc1, 0x0c],
+	    '克': [0x35, 0x2c],
+	    '兌': [0x81, 0x2c],
+	    '免': [0x53, 0x2c],
+	    '兎': [0xb5, 0x1a],
+	    '児': [0x95, 0x2c],
+	    '兒': [0x95, 0x94, 0x2c],
+	    '兔': [0xb5, 0xb4, 0x1a],
+	    '党': [0xc1, 0x2c],
+	    '兜': [0x27, 0x24, 0x2c],
+	    '兢': [0x35, 0x36, 0x2c],
+	    '入': [0x31, 0x4a],
+	    '全': [0x27, 0xde],
+	    '兩': [0x67, 0x66, 0x18],
+	    '兪': [0x21, 0xd8],
+	    '八': [0xa1, 0x2e],
+	    '公': [0x81, 0x9c],
+	    '六': [0xa1, 0x1e],
+	    '兮': [0x27, 0x24, 0xfc],
+	    '共': [0x11, 0x9c],
+	    '兵': [0x93, 0x2e],
+	    '其': [0x11, 0x8e],
+	    '具': [0x61, 0x28],
+	    '典': [0x63, 0x2e],
+	    '兼': [0x27, 0x9e],
+	    '冀': [0x87, 0x62, 0x9c],
+	    '冂': [0x21, 0xec],
+	    '内': [0xe5, 0x98],
+	    '円': [0x17, 0xe8],
+	    '冉': [0x03, 0x34, 0xec],
+	    '冊': [0x11, 0xde],
+	    '册': [0x11, 0x10, 0xde],
+	    '再': [0x35, 0xec],
+	    '冏': [0xe5, 0x24, 0x1e],
+	    '冐': [0xc5, 0x24, 0xfe],
+	    '冑': [0x63, 0xec],
+	    '冒': [0xc5, 0xfe],
+	    '冓': [0x41, 0xfa],
+	    '冕': [0xc5, 0x52, 0x2c],
+	    '冖': [0x25, 0x48],
+	    '冗': [0x25, 0xc8],
+	    '写': [0x25, 0x0a],
+	    '冠': [0x25, 0xae],
+	    '冢': [0x41, 0x1a],
+	    '冤': [0x25, 0x2c],
+	    '冥': [0xc1, 0xcc],
+	    '冦': [0x25, 0x02, 0x2c],
+	    '冨': [0x03, 0x24, 0xda],
+	    '冩': [0x25, 0x24, 0x0a],
+	    '冪': [0x25, 0x92, 0xae],
+	    '冫': [0xb1, 0x48],
+	    '冬': [0xb3, 0x0a],
+	    '冰': [0xb1, 0x24, 0x4e],
+	    '冱': [0xb1, 0x30, 0x8c],
+	    '冲': [0x47, 0x46, 0x2c],
+	    '决': [0x47, 0x46, 0x7e],
+	    '冴': [0xb1, 0x24, 0xfe],
+	    '况': [0xb1, 0xb0, 0x2c],
+	    '冶': [0xb1, 0x98],
+	    '冷': [0xb1, 0x0a],
+	    '冽': [0xb1, 0xd4, 0x5a],
+	    '凄': [0xa3, 0xb8],
+	    '凅': [0xb1, 0xe4, 0x3c],
+	    '准': [0xb1, 0x0e],
+	    '凉': [0xb1, 0xb0, 0x3e],
+	    '凋': [0xb1, 0xe4, 0x7a],
+	    '凌': [0xb1, 0x24, 0xba],
+	    '凍': [0xb1, 0xce],
+	    '凖': [0xb1, 0xb0, 0x3c],
+	    '凛': [0xb1, 0x24, 0x3e],
+	    '凝': [0xb1, 0x58],
+	    '几': [0x81, 0xc8],
+	    '凡': [0x11, 0xc8],
+	    '処': [0xb3, 0xc8],
+	    '凧': [0xf3, 0xae],
+	    '凩': [0x87, 0xf2, 0x2c],
+	    '凪': [0xe1, 0xfa],
+	    '凭': [0x91, 0xc0, 0xc8],
+	    '凰': [0xf3, 0xc4, 0xde],
+	    '凱': [0x51, 0xc8],
+	    '凵': [0xf5, 0x80, 0x88],
+	    '凶': [0xf5, 0x88],
+	    '凸': [0x31, 0x3e],
+	    '凹': [0x31, 0xec],
+	    '出': [0x31, 0xde],
+	    '函': [0xe5, 0xea],
+	    '凾': [0xe5, 0xe4, 0xea],
+	    '刀': [0x11, 0x5a],
+	    '刃': [0x03, 0x5a],
+	    '刄': [0x03, 0x02, 0x5a],
+	    '分': [0x2f],
+	    '切': [0x37, 0x5a],
+	    '刈': [0xf7, 0x5a],
+	    '刊': [0x83, 0x5a],
+	    '刋': [0x53, 0xa0, 0xbe],
+	    '刎': [0x53, 0x10, 0xa8],
+	    '刑': [0x57, 0x5e],
+	    '刔': [0x53, 0x24, 0x7e],
+	    '列': [0xd5, 0x5a],
+	    '初': [0x57, 0x5a],
+	    '判': [0xc3, 0x5e],
+	    '別': [0x37, 0x5e],
+	    '刧': [0x53, 0x24, 0x9c],
+	    '利': [0x55, 0x5a],
+	    '刪': [0x53, 0x24, 0xde],
+	    '刮': [0x53, 0x36, 0xbe],
+	    '到': [0xd1, 0x5a],
+	    '刳': [0x53, 0x24, 0x9e],
+	    '制': [0xb7, 0x5a],
+	    '刷': [0xa7, 0x5a],
+	    '券': [0x97, 0x5a],
+	    '刹': [0xf7, 0x5e],
+	    '刺': [0x87, 0x5a],
+	    '刻': [0x45, 0x5e],
+	    '剃': [0x53, 0xd0, 0x2c],
+	    '剄': [0x97, 0x24, 0x5e],
+	    '則': [0x61, 0x5a],
+	    '削': [0x85, 0x5a],
+	    '剋': [0x35, 0x24, 0x5a],
+	    '剌': [0x03, 0x86, 0x5a],
+	    '前': [0x23, 0x5a],
+	    '剏': [0x75, 0x12, 0x5a],
+	    '剔': [0x53, 0xc4, 0xa8],
+	    '剖': [0xe3, 0x5a],
+	    '剛': [0xe5, 0x5e],
+	    '剞': [0x53, 0x96, 0x8a],
+	    '剣': [0x11, 0x5e],
+	    '剤': [0xa3, 0x5e],
+	    '剥': [0xe7, 0x5a],
+	    '剩': [0x55, 0x54, 0x5e],
+	    '剪': [0x53, 0x22, 0x5a],
+	    '副': [0xd3, 0x5a],
+	    '剰': [0x55, 0x5e],
+	    '剱': [0x03, 0x10, 0x5e],
+	    '割': [0x25, 0x5a],
+	    '剳': [0x53, 0x74, 0x2c],
+	    '剴': [0x53, 0x24, 0x58],
+	    '創': [0x15, 0x5a],
+	    '剽': [0x53, 0x46, 0x5e],
+	    '剿': [0x57, 0x82, 0x8e],
+	    '劃': [0x53, 0xd2, 0x6a],
+	    '劇': [0xb5, 0x5e],
+	    '劈': [0x53, 0x24, 0xea],
+	    '劉': [0x83, 0x24, 0x5a],
+	    '劍': [0x11, 0x10, 0x5e],
+	    '劑': [0xa3, 0xa2, 0x5e],
+	    '劒': [0x81, 0x10, 0x5e],
+	    '劔': [0x21, 0x10, 0x5e],
+	    '力': [0x5b],
+	    '功': [0x95, 0x5a],
+	    '加': [0x53, 0x3e],
+	    '劣': [0xb5, 0x5a],
+	    '助': [0x53, 0xbc],
+	    '努': [0x53, 0x6c],
+	    '劫': [0x53, 0x72, 0x9c],
+	    '劬': [0x53, 0xf4, 0x28],
+	    '劭': [0x53, 0x52, 0xec],
+	    '励': [0x53, 0xea],
+	    '労': [0xc1, 0x5a],
+	    '劵': [0x97, 0x96, 0x5a],
+	    '効': [0x67, 0x5a],
+	    '劼': [0x53, 0x72, 0x3e],
+	    '劾': [0x45, 0x5a],
+	    '勁': [0x97, 0x24, 0x5a],
+	    '勃': [0x53, 0x3c],
+	    '勅': [0x53, 0xa8],
+	    '勇': [0x53, 0x6a],
+	    '勉': [0x53, 0x5a],
+	    '勍': [0x53, 0xc0, 0x3e],
+	    '勒': [0x75, 0x24, 0x5a],
+	    '動': [0x27, 0x5a],
+	    '勗': [0xc5, 0x52, 0xbc],
+	    '勘': [0xf5, 0x5a],
+	    '務': [0x71, 0x5a],
+	    '勝': [0x23, 0x8a],
+	    '勞': [0xc1, 0xc0, 0x5a],
+	    '募': [0x93, 0x5a],
+	    '勠': [0x53, 0xf2, 0x0c],
+	    '勢': [0xf1, 0x5a],
+	    '勣': [0x53, 0xd6, 0x68],
+	    '勤': [0x53, 0x8e],
+	    '勦': [0x53, 0x82, 0x8e],
+	    '勧': [0x97, 0x5e],
+	    '勲': [0x53, 0xf8],
+	    '勳': [0x53, 0x52, 0xf8],
+	    '勵': [0x53, 0x52, 0xea],
+	    '勸': [0x97, 0x96, 0x5e],
+	    '勹': [0xf5, 0x04, 0x0c],
+	    '勺': [0x31, 0xfc],
+	    '勾': [0xf5, 0xfa],
+	    '勿': [0x11, 0xa8],
+	    '匁': [0x31, 0x5a],
+	    '匂': [0xf5, 0x4e],
+	    '包': [0xf5, 0x0c],
+	    '匆': [0x03, 0x30, 0x5a],
+	    '匈': [0xf5, 0xf4, 0x88],
+	    '匍': [0xf5, 0xdc],
+	    '匏': [0x97, 0xf4, 0x0c],
+	    '匐': [0xf5, 0xda],
+	    '匕': [0x05, 0xce],
+	    '化': [0x91, 0x38],
+	    '北': [0x31, 0x8e],
+	    '匙': [0xc5, 0x24, 0xce],
+	    '匚': [0xf5, 0x40, 0x48],
+	    '匝': [0xf5, 0x24, 0xae],
+	    '匠': [0xf5, 0x68],
+	    '匡': [0xf5, 0xd6, 0x0a],
+	    '匣': [0xf5, 0xa0, 0x9c],
+	    '匪': [0xf5, 0x10, 0xf8],
+	    '匯': [0xf5, 0xb0, 0x0e],
+	    '匱': [0xf5, 0x60, 0x8e],
+	    '匳': [0xf5, 0x24, 0x2e],
+	    '匸': [0xf5, 0x24, 0x48],
+	    '匹': [0xf5, 0xc8],
+	    '区': [0xf5, 0x48],
+	    '医': [0xf5, 0x58],
+	    '匿': [0xf5, 0xa8],
+	    '區': [0xf5, 0xf4, 0x48],
+	    '十': [0x3d],
+	    '千': [0xa1, 0xbe],
+	    '卅': [0xa1, 0xa0, 0x78],
+	    '卆': [0x15, 0x14, 0x3c],
+	    '升': [0x31, 0x9a],
+	    '午': [0xb5, 0x18],
+	    '卉': [0x93, 0x88],
+	    '半': [0x35, 0xca],
+	    '卍': [0xa1, 0x12, 0xc8],
+	    '卑': [0x63, 0xaa],
+	    '卒': [0x15, 0x3c],
+	    '卓': [0xc5, 0x7c],
+	    '協': [0x35, 0x5a],
+	    '南': [0x31, 0xee],
+	    '単': [0x37, 0x3e],
+	    '博': [0x35, 0x7e],
+	    '卜': [0x05, 0x7c],
+	    '卞': [0x03, 0x30, 0xc8],
+	    '占': [0x37, 0x7c],
+	    '卦': [0x73, 0x24, 0x7c],
+	    '卩': [0x03, 0xaa],
+	    '卮': [0x71, 0x24, 0xaa],
+	    '卯': [0xa3, 0x1a],
+	    '印': [0x11, 0xaa],
+	    '危': [0x93, 0xaa],
+	    '即': [0xb3, 0xaa],
+	    '却': [0x73, 0xaa],
+	    '卵': [0x05, 0xaa],
+	    '卷': [0x97, 0x96, 0xaa],
+	    '卸': [0xe1, 0xaa],
+	    '卻': [0xa3, 0x24, 0x6a],
+	    '卿': [0xa3, 0x24, 0xaa],
+	    '厂': [0x71, 0x02, 0x0a],
+	    '厄': [0x71, 0xaa],
+	    '厖': [0x71, 0x24, 0x1a],
+	    '厘': [0x71, 0x2e],
+	    '厚': [0x71, 0xcc],
+	    '原': [0x71, 0x0a],
+	    '厠': [0x71, 0x60, 0x5a],
+	    '厥': [0x71, 0xe0, 0x0a],
+	    '厦': [0x71, 0x14, 0xba],
+	    '厨': [0x71, 0x20, 0x7c],
+	    '厩': [0x71, 0x24, 0x98],
+	    '厭': [0x71, 0x2a],
+	    '厮': [0x71, 0x24, 0x8e],
+	    '厰': [0x71, 0x24, 0xb8],
+	    '厳': [0x71, 0xb8],
+	    '厶': [0x05, 0xfa],
+	    '去': [0x73, 0x9c],
+	    '参': [0x03, 0x1a],
+	    '參': [0x03, 0x02, 0x1a],
+	    '又': [0x11, 0x6c],
+	    '叉': [0x03, 0x6c],
+	    '及': [0x11, 0x4c],
+	    '友': [0x35, 0x6c],
+	    '双': [0x65, 0x6c],
+	    '反': [0xc3, 0xe8],
+	    '収': [0xd7, 0x6c],
+	    '叔': [0x13, 0x6c],
+	    '取': [0xe7, 0x6c],
+	    '受': [0xc1, 0x6c],
+	    '叙': [0x27, 0x6c],
+	    '叛': [0x35, 0xe8],
+	    '叟': [0x21, 0x1e],
+	    '叡': [0xf7, 0x6c],
+	    '叢': [0x87, 0x6c],
+	    '口': [0x3f],
+	    '古': [0x37, 0x3c],
+	    '句': [0xf5, 0x28],
+	    '叨': [0x37, 0x10, 0x5a],
+	    '叩': [0xa3, 0xec],
+	    '只': [0x37, 0xca],
+	    '叫': [0x37, 0xaa],
+	    '召': [0x53, 0xec],
+	    '叭': [0x37, 0xa0, 0x2e],
+	    '叮': [0x37, 0xa0, 0x7e],
+	    '可': [0x31, 0x8a],
+	    '台': [0x11, 0x4a],
+	    '叱': [0x37, 0xce],
+	    '史': [0x37, 0x4a],
+	    '右': [0x31, 0xa8],
+	    '叶': [0x37, 0x24, 0x3c],
+	    '号': [0x37, 0xba],
+	    '司': [0x11, 0x98],
+	    '叺': [0x37, 0x30, 0x4a],
+	    '吁': [0x37, 0x02, 0x8a],
+	    '吃': [0x37, 0xc0, 0x1c],
+	    '各': [0xb3, 0x3e],
+	    '合': [0x27, 0xec],
+	    '吉': [0x73, 0x3e],
+	    '吊': [0xa7, 0xec],
+	    '吋': [0x37, 0x30, 0xae],
+	    '同': [0xe5, 0x7c],
+	    '名': [0xd5, 0x3e],
+	    '后': [0x71, 0x3e],
+	    '吏': [0x37, 0x98],
+	    '吐': [0x37, 0x7a],
+	    '向': [0xe5, 0x9c],
+	    '君': [0x15, 0x0a],
+	    '吝': [0x37, 0xc0, 0x48],
+	    '吟': [0x37, 0x2e],
+	    '吠': [0x97, 0x24, 0x3e],
+	    '否': [0xd3, 0xec],
+	    '吩': [0x37, 0x24, 0x2e],
+	    '含': [0x27, 0x3e],
+	    '听': [0x37, 0x30, 0x68],
+	    '吭': [0x37, 0x20, 0x2c],
+	    '吮': [0x37, 0x24, 0xfa],
+	    '吶': [0x37, 0xe4, 0x98],
+	    '吸': [0x37, 0x4c],
+	    '吹': [0x37, 0xe8],
+	    '吻': [0x37, 0xa8],
+	    '吼': [0x37, 0x94, 0x68],
+	    '吽': [0x37, 0xb4, 0x0a],
+	    '吾': [0x23, 0x3e],
+	    '呀': [0x37, 0x10, 0xfe],
+	    '呂': [0x81, 0xee],
+	    '呆': [0x37, 0x24, 0x8e],
+	    '呈': [0x37, 0xde],
+	    '呉': [0x21, 0x9c],
+	    '告': [0x95, 0x9a],
+	    '呎': [0x37, 0x30, 0x6a],
+	    '呑': [0x97, 0xec],
+	    '呟': [0xe5, 0xec],
+	    '周': [0xe5, 0x7a],
+	    '呪': [0xe5, 0x2c],
+	    '呰': [0x37, 0x30, 0x18],
+	    '呱': [0x37, 0xa4, 0x7a],
+	    '味': [0x37, 0x18],
+	    '呵': [0xe5, 0x8a],
+	    '呶': [0x37, 0xd2, 0x6c],
+	    '呷': [0x37, 0xa0, 0x9c],
+	    '呻': [0xa7, 0x3e],
+	    '呼': [0x37, 0x58],
+	    '命': [0x27, 0xaa],
+	    '咀': [0x37, 0x20, 0xbc],
+	    '咄': [0x37, 0x30, 0xde],
+	    '咆': [0x37, 0xf4, 0x0c],
+	    '咋': [0x37, 0x24, 0xaa],
+	    '和': [0x55, 0x3e],
+	    '咎': [0x37, 0x24, 0xba],
+	    '咏': [0x37, 0xb0, 0x18],
+	    '咐': [0x37, 0x42, 0xae],
+	    '咒': [0x37, 0x80, 0xc8],
+	    '咢': [0x21, 0x9e],
+	    '咤': [0x37, 0x12, 0x4a],
+	    '咥': [0x37, 0x10, 0xd8],
+	    '咨': [0x37, 0xb0, 0xe8],
+	    '咫': [0x63, 0x36, 0xca],
+	    '咬': [0x37, 0xc0, 0x6e],
+	    '咯': [0x37, 0xb2, 0x3e],
+	    '咲': [0x37, 0x9e],
+	    '咳': [0x37, 0x24, 0x4c],
+	    '咸': [0xc7, 0x48],
+	    '咼': [0x41, 0x8a],
+	    '咽': [0x37, 0xe4, 0x9e],
+	    '咾': [0x37, 0x74, 0x0c],
+	    '哀': [0xc1, 0x5e],
+	    '品': [0x37, 0x1a],
+	    '哂': [0x37, 0x30, 0x4e],
+	    '哄': [0x37, 0x10, 0x9c],
+	    '哇': [0x37, 0x72, 0x7a],
+	    '哈': [0x37, 0x26, 0xec],
+	    '哉': [0x11, 0xee],
+	    '哘': [0x37, 0x24, 0xd8],
+	    '員': [0x61, 0x3e],
+	    '哢': [0x37, 0xd6, 0x7c],
+	    '哥': [0x83, 0x30, 0x8a],
+	    '哦': [0x37, 0xe4, 0x0a],
+	    '哨': [0x37, 0xbc],
+	    '哩': [0x37, 0x30, 0x2e],
+	    '哭': [0x37, 0x24, 0x9e],
+	    '哮': [0x37, 0x74, 0x9c],
+	    '哲': [0x37, 0x68],
+	    '哺': [0x37, 0xdc],
+	    '哽': [0x37, 0xc4, 0x4a],
+	    '唄': [0x37, 0x24, 0xe8],
+	    '唆': [0x37, 0x5c],
+	    '唇': [0x35, 0x3e],
+	    '唏': [0x37, 0xf6, 0xae],
+	    '唐': [0x71, 0xfc],
+	    '唔': [0x37, 0x22, 0x3e],
+	    '唖': [0x37, 0x0a],
+	    '售': [0x37, 0x24, 0x0e],
+	    '唯': [0x37, 0x0e],
+	    '唱': [0x37, 0xcc],
+	    '唳': [0x37, 0x74, 0x9e],
+	    '唸': [0x37, 0x3a],
+	    '唹': [0x37, 0xd4, 0xc8],
+	    '唾': [0x37, 0x24, 0x4e],
+	    '啀': [0x37, 0x24, 0x7a],
+	    '啄': [0x37, 0xb4, 0x48],
+	    '啅': [0x37, 0xc4, 0x7c],
+	    '商': [0xe3, 0x1e],
+	    '啌': [0x37, 0x12, 0x8e],
+	    '問': [0xf5, 0x3e],
+	    '啓': [0x75, 0x3e],
+	    '啖': [0x37, 0xf0, 0xf8],
+	    '啗': [0x37, 0x24, 0x5a],
+	    '啜': [0x37, 0x6c],
+	    '啝': [0x37, 0x54, 0x3e],
+	    '啣': [0x37, 0xe0, 0xaa],
+	    '啻': [0xe5, 0xe2, 0xae],
+	    '啼': [0x37, 0xe2, 0xae],
+	    '啾': [0x37, 0x54, 0xf8],
+	    '喀': [0x37, 0x24, 0x3e],
+	    '喃': [0x37, 0x30, 0xee],
+	    '善': [0xb5, 0x3e],
+	    '喇': [0x37, 0x86, 0x5a],
+	    '喉': [0x37, 0x9c],
+	    '喊': [0x37, 0xc6, 0x48],
+	    '喋': [0x37, 0x78],
+	    '喘': [0x37, 0x24, 0x5c],
+	    '喙': [0x37, 0xc0, 0xbc],
+	    '喚': [0x37, 0x8c],
+	    '喜': [0x73, 0xec],
+	    '喝': [0x37, 0x24, 0xb8],
+	    '喞': [0x37, 0xb2, 0xaa],
+	    '喟': [0x37, 0x62, 0x8c],
+	    '喧': [0x37, 0x12, 0xcc],
+	    '喨': [0x37, 0x12, 0xec],
+	    '喩': [0x37, 0xd8],
+	    '喪': [0x35, 0x5e],
+	    '喫': [0xe5, 0x5a],
+	    '喬': [0x03, 0x5c],
+	    '單': [0x37, 0x36, 0x3e],
+	    '喰': [0x37, 0xb6, 0xbe],
+	    '営': [0xc1, 0xee],
+	    '嗄': [0x37, 0x14, 0xba],
+	    '嗅': [0x37, 0xfe],
+	    '嗇': [0x43, 0xe4, 0x3e],
+	    '嗔': [0x37, 0x02, 0xfe],
+	    '嗚': [0x37, 0xb6, 0x1a],
+	    '嗜': [0x37, 0x4e],
+	    '嗟': [0x37, 0xb4, 0x9c],
+	    '嗣': [0xd7, 0x98],
+	    '嗤': [0x37, 0xf2, 0x0a],
+	    '嗷': [0x37, 0x24, 0xdc],
+	    '嗹': [0x37, 0xc6, 0xfa],
+	    '嗽': [0xe5, 0x24, 0xe8],
+	    '嗾': [0x37, 0xd4, 0x58],
+	    '嘆': [0x37, 0x9a],
+	    '嘉': [0x73, 0x5a],
+	    '嘔': [0x37, 0xfc],
+	    '嘖': [0x37, 0xd6, 0x68],
+	    '嘗': [0xc1, 0x24, 0x4e],
+	    '嘘': [0xf1, 0x3e],
+	    '嘛': [0x37, 0xa4, 0xea],
+	    '嘩': [0x37, 0x92, 0x8a],
+	    '嘯': [0x37, 0x52, 0xd8],
+	    '嘱': [0x37, 0xee],
+	    '嘲': [0xe5, 0x8c],
+	    '嘴': [0x37, 0xe4, 0x88],
+	    '嘶': [0x37, 0x24, 0x68],
+	    '嘸': [0x37, 0xf2, 0xf8],
+	    '噂': [0xe5, 0xae],
+	    '噌': [0x37, 0x24, 0xbc],
+	    '噎': [0x37, 0x32, 0x0a],
+	    '噐': [0x97, 0x96, 0x3e],
+	    '噛': [0x37, 0xe0, 0x5c],
+	    '噤': [0x37, 0x86, 0x5e],
+	    '器': [0x97, 0x3e],
+	    '噪': [0x37, 0x24, 0x1a],
+	    '噫': [0x37, 0x02, 0x4a],
+	    '噬': [0x37, 0x90, 0xda],
+	    '噴': [0x37, 0xda],
+	    '噸': [0x37, 0x14, 0xda],
+	    '噺': [0x37, 0xea],
+	    '嚀': [0x37, 0x24, 0x7e],
+	    '嚆': [0x37, 0x30, 0x1e],
+	    '嚇': [0x37, 0x8a],
+	    '嚊': [0x37, 0xf6, 0x6a],
+	    '嚏': [0x37, 0x24, 0xfe],
+	    '嚔': [0x37, 0x12, 0xfe],
+	    '嚠': [0x37, 0x24, 0x8a],
+	    '嚢': [0x57, 0x3c],
+	    '嚥': [0x37, 0x24, 0xbe],
+	    '嚮': [0xe5, 0x44, 0x58],
+	    '嚴': [0x71, 0x70, 0xb8],
+	    '嚶': [0x37, 0xd2, 0x68],
+	    '嚼': [0x37, 0xc0, 0x58],
+	    '囀': [0x37, 0xf2, 0x7e],
+	    '囁': [0xe5, 0xee],
+	    '囂': [0x37, 0x24, 0x1c],
+	    '囃': [0x37, 0xc8],
+	    '囈': [0x37, 0x92, 0x1e],
+	    '囎': [0x37, 0x60, 0xbc],
+	    '囑': [0x37, 0x36, 0xee],
+	    '囓': [0xb7, 0xe0, 0x5c],
+	    '囗': [0x03, 0xe4, 0xde],
+	    '囘': [0xe5, 0xe4, 0x3e],
+	    '囚': [0xe5, 0x4a],
+	    '四': [0xa1, 0x3a],
+	    '回': [0xe5, 0x3e],
+	    '因': [0xe5, 0x9e],
+	    '団': [0xe5, 0x7e],
+	    '囮': [0xe5, 0xdc],
+	    '困': [0xe5, 0x8e],
+	    '囲': [0xed],
+	    '図': [0xe5, 0xc8],
+	    '囹': [0xe5, 0x90, 0x3c],
+	    '固': [0xe5, 0x3c],
+	    '国': [0xe5, 0xde],
+	    '囿': [0xe5, 0x34, 0x2a],
+	    '圀': [0xe5, 0xc0, 0xdc],
+	    '圃': [0xe5, 0x24, 0xdc],
+	    '圄': [0xe5, 0x22, 0x3e],
+	    '圈': [0xe5, 0xe4, 0xaa],
+	    '圉': [0xe5, 0x72, 0x8a],
+	    '國': [0xe5, 0xe4, 0xde],
+	    '圍': [0xe5, 0x24, 0x0e],
+	    '圏': [0xe5, 0xaa],
+	    '園': [0xe5, 0x1e],
+	    '圓': [0x17, 0x16, 0xe8],
+	    '圖': [0xe5, 0xe4, 0xc8],
+	    '團': [0xe5, 0xe4, 0x7e],
+	    '圜': [0xe5, 0x24, 0x3a],
+	    '土': [0x7b],
+	    '圦': [0x73, 0x30, 0x4a],
+	    '圧': [0x71, 0x7a],
+	    '在': [0x35, 0x7a],
+	    '圭': [0x73, 0x24, 0x7a],
+	    '地': [0x73, 0x6e],
+	    '圷': [0x73, 0x30, 0xc8],
+	    '圸': [0x73, 0x50, 0x0a],
+	    '圻': [0x73, 0x30, 0x68],
+	    '址': [0xe1, 0x7a],
+	    '坂': [0x73, 0xe8],
+	    '均': [0x73, 0xfc],
+	    '坊': [0x73, 0xdc],
+	    '坎': [0x73, 0xe0, 0x0a],
+	    '坏': [0x73, 0x10, 0xda],
+	    '坐': [0x71, 0x98],
+	    '坑': [0x73, 0x2c],
+	    '坡': [0x73, 0x10, 0xce],
+	    '坤': [0x73, 0x20, 0xae],
+	    '坦': [0x73, 0x10, 0xcc],
+	    '坩': [0x73, 0x10, 0x3a],
+	    '坪': [0x27, 0x7a],
+	    '坿': [0x73, 0x42, 0xae],
+	    '垂': [0x25, 0x4e],
+	    '垈': [0x73, 0x90, 0xec],
+	    '垉': [0x73, 0xf4, 0x0c],
+	    '型': [0x53, 0x7a],
+	    '垓': [0x73, 0x20, 0x4c],
+	    '垠': [0x73, 0x24, 0x58],
+	    '垢': [0x73, 0x24, 0x3e],
+	    '垣': [0x73, 0xcc],
+	    '垤': [0x73, 0x10, 0xd8],
+	    '垪': [0x73, 0xc0, 0x7c],
+	    '垰': [0x73, 0x30, 0x1a],
+	    '垳': [0x73, 0x24, 0xd8],
+	    '埀': [0x25, 0x24, 0x4e],
+	    '埃': [0x73, 0xfa],
+	    '埆': [0x73, 0xe4, 0x88],
+	    '埋': [0x73, 0x2e],
+	    '城': [0x73, 0xce],
+	    '埒': [0x73, 0xde],
+	    '埓': [0x73, 0x72, 0xde],
+	    '埔': [0x73, 0x24, 0xdc],
+	    '埖': [0x73, 0x92, 0x38],
+	    '埜': [0x73, 0x86, 0x8e],
+	    '域': [0x73, 0x18],
+	    '埠': [0x73, 0xa2, 0xda],
+	    '埣': [0x73, 0x14, 0x3c],
+	    '埴': [0x73, 0x34, 0xfe],
+	    '執': [0x73, 0x1c],
+	    '培': [0x73, 0xea],
+	    '基': [0x87, 0x7a],
+	    '埼': [0x73, 0x9e],
+	    '堀': [0x73, 0x7c],
+	    '堂': [0xc1, 0x7a],
+	    '堅': [0x73, 0xba],
+	    '堆': [0x73, 0x0e],
+	    '堊': [0x03, 0x7a],
+	    '堋': [0x73, 0x22, 0x2a],
+	    '堕': [0x73, 0x2a],
+	    '堙': [0x73, 0x30, 0x4e],
+	    '堝': [0x73, 0x24, 0x8a],
+	    '堡': [0x73, 0x42, 0x3e],
+	    '堤': [0x73, 0x78],
+	    '堪': [0x73, 0x8e],
+	    '堰': [0x73, 0x24, 0xfc],
+	    '報': [0x73, 0x4c],
+	    '場': [0x73, 0xa8],
+	    '堵': [0x73, 0x24, 0xcc],
+	    '堺': [0x73, 0x62, 0x2c],
+	    '堽': [0xe5, 0xe4, 0xd8],
+	    '塀': [0x73, 0x24, 0xde],
+	    '塁': [0x63, 0x7a],
+	    '塊': [0x73, 0x4e],
+	    '塋': [0xf1, 0x24, 0x7a],
+	    '塑': [0x73, 0xca],
+	    '塒': [0x73, 0xc4, 0xae],
+	    '塔': [0x73, 0x9a],
+	    '塗': [0x47, 0x7a],
+	    '塘': [0x73, 0x70, 0xfc],
+	    '塙': [0x73, 0x30, 0x1e],
+	    '塚': [0x73, 0x1a],
+	    '塞': [0x13, 0x7a],
+	    '塢': [0x73, 0xb6, 0x1a],
+	    '塩': [0x73, 0x8c],
+	    '填': [0x73, 0x02, 0xfe],
+	    '塰': [0x73, 0x46, 0xca],
+	    '塲': [0x73, 0x72, 0xa8],
+	    '塵': [0x73, 0xb4, 0x38],
+	    '塹': [0x73, 0xf2, 0x68],
+	    '塾': [0x15, 0x7a],
+	    '境': [0x73, 0x4a],
+	    '墅': [0x73, 0x26, 0x78],
+	    '墓': [0x93, 0x7a],
+	    '増': [0x73, 0xbc],
+	    '墜': [0xb5, 0x7a],
+	    '墟': [0x73, 0xb2, 0xf8],
+	    '墨': [0xa7, 0x7a],
+	    '墫': [0x73, 0xb6, 0xae],
+	    '墮': [0x73, 0x72, 0x2a],
+	    '墳': [0x73, 0xda],
+	    '墸': [0x73, 0x74, 0x9a],
+	    '墹': [0x73, 0xf4, 0xcc],
+	    '墺': [0x73, 0xe4, 0x5c],
+	    '墻': [0x73, 0xe4, 0x3e],
+	    '墾': [0x51, 0x6e],
+	    '壁': [0xe3, 0x7a],
+	    '壅': [0x73, 0x24, 0xce],
+	    '壇': [0xc1, 0xec],
+	    '壊': [0x73, 0x3a],
+	    '壌': [0x73, 0xee],
+	    '壑': [0x73, 0x62, 0x0a],
+	    '壓': [0x71, 0x70, 0x7a],
+	    '壕': [0x73, 0xc0, 0xbc],
+	    '壗': [0x73, 0xd2, 0xf8],
+	    '壘': [0x63, 0x62, 0x7a],
+	    '壙': [0x73, 0x70, 0x9c],
+	    '壜': [0x73, 0xc4, 0x6e],
+	    '壞': [0x73, 0x72, 0x3a],
+	    '壟': [0x73, 0xe2, 0xac],
+	    '壤': [0x73, 0x72, 0xee],
+	    '壥': [0x73, 0x24, 0x78],
+	    '士': [0x73, 0x0a],
+	    '壬': [0xa1, 0x4e],
+	    '壮': [0xd7, 0x7a],
+	    '壯': [0xd7, 0xd6, 0x7a],
+	    '声': [0xe7, 0x5c],
+	    '壱': [0x33, 0x0a],
+	    '売': [0x73, 0x68],
+	    '壷': [0x73, 0x24, 0x0a],
+	    '壹': [0x33, 0x32, 0x0a],
+	    '壺': [0x73, 0xc0, 0x0a],
+	    '壻': [0xd3, 0xd2, 0x78],
+	    '壼': [0x73, 0x02, 0x0a],
+	    '壽': [0xd7, 0xd6, 0xae],
+	    '夂': [0xb3, 0x10, 0x18],
+	    '変': [0x17, 0xba],
+	    '夊': [0xb3, 0x02, 0x0a],
+	    '夏': [0x15, 0xba],
+	    '夐': [0x03, 0x14, 0xba],
+	    '夕': [0xd5, 0x0a],
+	    '外': [0xd5, 0x7c],
+	    '夘': [0xa3, 0xd4, 0x0a],
+	    '夙': [0x25, 0xdc],
+	    '多': [0xd5, 0xdc],
+	    '夛': [0x03, 0xd4, 0xdc],
+	    '夜': [0xc1, 0x4a],
+	    '夢': [0xc1, 0xdc],
+	    '夥': [0x63, 0xdc],
+	    '大': [0x31, 0x9e],
+	    '天': [0x03, 0x9e],
+	    '太': [0x05, 0x9e],
+	    '夫': [0x41, 0x9e],
+	    '夬': [0x21, 0x7e],
+	    '夭': [0x11, 0x9e],
+	    '央': [0x97, 0x1c],
+	    '失': [0x81, 0x9e],
+	    '夲': [0x97, 0x24, 0x3c],
+	    '夷': [0xd1, 0x4a],
+	    '夸': [0x81, 0x80, 0x9e],
+	    '夾': [0x21, 0x4a],
+	    '奄': [0x81, 0xac],
+	    '奇': [0x97, 0x8a],
+	    '奈': [0x97, 0x98],
+	    '奉': [0x97, 0xdc],
+	    '奎': [0x97, 0x24, 0x7a],
+	    '奏': [0x97, 0x9e],
+	    '奐': [0x21, 0x8c],
+	    '契': [0x53, 0x9e],
+	    '奔': [0x97, 0x7c],
+	    '奕': [0x17, 0x30, 0x9e],
+	    '套': [0x97, 0x24, 0x7c],
+	    '奘': [0x97, 0xd6, 0x7a],
+	    '奚': [0x41, 0x4e],
+	    '奠': [0xb7, 0x30, 0x9e],
+	    '奢': [0x97, 0x74, 0xcc],
+	    '奥': [0xe5, 0x5c],
+	    '奧': [0xe5, 0xe4, 0x5c],
+	    '奨': [0xd7, 0x38],
+	    '奩': [0x97, 0xf4, 0x48],
+	    '奪': [0x97, 0x0e],
+	    '奬': [0xd7, 0xd6, 0x38],
+	    '奮': [0x97, 0x6a],
+	    '女': [0xdb],
+	    '奴': [0xd3, 0x6c],
+	    '奸': [0xd3, 0x8a],
+	    '好': [0x95, 0xda],
+	    '妁': [0xd3, 0x30, 0xfc],
+	    '如': [0xd3, 0x3e],
+	    '妃': [0xd7, 0x8e],
+	    '妄': [0xd5, 0xda],
+	    '妊': [0xd3, 0x4e],
+	    '妍': [0xd3, 0x5e],
+	    '妓': [0xd3, 0xca],
+	    '妖': [0xd3, 0x24, 0x9e],
+	    '妙': [0xd3, 0xbc],
+	    '妛': [0x51, 0x12, 0xda],
+	    '妝': [0xd7, 0x24, 0xda],
+	    '妣': [0xd3, 0x38],
+	    '妥': [0xd3, 0xc8],
+	    '妨': [0xd3, 0xdc],
+	    '妬': [0xd3, 0x24, 0xea],
+	    '妲': [0xd3, 0x10, 0xcc],
+	    '妹': [0xd3, 0x28],
+	    '妻': [0xd3, 0xaa],
+	    '妾': [0xd3, 0xea],
+	    '姆': [0xd3, 0x30, 0xca],
+	    '姉': [0xd3, 0xae],
+	    '始': [0xd3, 0x4a],
+	    '姐': [0xd3, 0x20, 0xbc],
+	    '姑': [0xd3, 0x36, 0x3c],
+	    '姓': [0xd3, 0x0e],
+	    '委': [0x55, 0xda],
+	    '姙': [0xd3, 0x90, 0x4e],
+	    '姚': [0xd3, 0x24, 0x2c],
+	    '姜': [0xb5, 0x24, 0xda],
+	    '姥': [0xd3, 0x7c],
+	    '姦': [0xd3, 0xd2, 0xda],
+	    '姨': [0xd3, 0xd0, 0x4a],
+	    '姪': [0xd3, 0x10, 0xd8],
+	    '姫': [0xd3, 0xba],
+	    '姶': [0xd3, 0x26, 0xec],
+	    '姻': [0xd3, 0x9e],
+	    '姿': [0xd3, 0xe8],
+	    '威': [0xc7, 0xda],
+	    '娃': [0xd3, 0x24, 0x7a],
+	    '娉': [0xd3, 0x24, 0xfc],
+	    '娑': [0xd3, 0xb0, 0xdc],
+	    '娘': [0xd3, 0x58],
+	    '娚': [0xd3, 0x12, 0x5a],
+	    '娜': [0xd3, 0x24, 0xaa],
+	    '娟': [0xd3, 0x24, 0x2a],
+	    '娠': [0xd3, 0x3c],
+	    '娥': [0xd3, 0xe4, 0x0a],
+	    '娩': [0xd3, 0x52, 0x2c],
+	    '娯': [0xd3, 0x9c],
+	    '娵': [0xd3, 0xc0, 0x6c],
+	    '娶': [0xd3, 0xe6, 0x6c],
+	    '娼': [0xd3, 0x26, 0xcc],
+	    '婀': [0xd3, 0xa2, 0x8a],
+	    '婁': [0x81, 0x3a],
+	    '婆': [0xd3, 0xce],
+	    '婉': [0xd3, 0x24, 0x1a],
+	    '婚': [0xe1, 0xda],
+	    '婢': [0xd3, 0x62, 0xaa],
+	    '婦': [0xd3, 0x2e],
+	    '婪': [0xd3, 0x86, 0x8e],
+	    '婬': [0xd3, 0xa0, 0x4e],
+	    '婿': [0xd3, 0x78],
+	    '媒': [0xd3, 0x3a],
+	    '媚': [0xd3, 0xfe],
+	    '媛': [0xd3, 0x98],
+	    '媼': [0xd3, 0x2a],
+	    '媽': [0xd3, 0x24, 0xbc],
+	    '媾': [0xd3, 0x24, 0xfa],
+	    '嫁': [0xd3, 0x1a],
+	    '嫂': [0xd3, 0x20, 0x1e],
+	    '嫉': [0xd3, 0x50, 0x28],
+	    '嫋': [0xd3, 0xd0, 0xd8],
+	    '嫌': [0x97, 0xda],
+	    '嫐': [0xd3, 0x62, 0x5a],
+	    '嫖': [0xd3, 0x46, 0x5e],
+	    '嫗': [0xd3, 0xf4, 0x48],
+	    '嫡': [0xd3, 0x1c],
+	    '嫣': [0xd3, 0x80, 0xe8],
+	    '嫦': [0xd3, 0xc0, 0xae],
+	    '嫩': [0xd3, 0x24, 0xe8],
+	    '嫺': [0xd3, 0xf4, 0x2a],
+	    '嫻': [0xd3, 0xf4, 0x8e],
+	    '嬉': [0xd3, 0x7a],
+	    '嬋': [0xd3, 0x36, 0x3e],
+	    '嬌': [0xd3, 0x24, 0x5c],
+	    '嬖': [0xd3, 0x80, 0xea],
+	    '嬢': [0xd3, 0xee],
+	    '嬪': [0xd3, 0x12, 0x68],
+	    '嬬': [0xd3, 0x66, 0x5c],
+	    '嬰': [0xd3, 0x68],
+	    '嬲': [0x63, 0x24, 0xda],
+	    '嬶': [0xd3, 0xf6, 0x6a],
+	    '嬾': [0xd3, 0x14, 0xa8],
+	    '孀': [0xd3, 0x66, 0x8e],
+	    '孃': [0xd3, 0xd2, 0xee],
+	    '孅': [0xd3, 0x24, 0xee],
+	    '子': [0x9d],
+	    '孑': [0x03, 0x9c],
+	    '孔': [0x95, 0x68],
+	    '孕': [0x95, 0x02, 0x4c],
+	    '字': [0x13, 0x9c],
+	    '存': [0x35, 0x9c],
+	    '孚': [0x05, 0x1a],
+	    '孛': [0x95, 0x24, 0x3c],
+	    '孜': [0x95, 0xc0, 0xb8],
+	    '孝': [0x75, 0x9c],
+	    '孟': [0x81, 0x8c],
+	    '季': [0x55, 0x9c],
+	    '孤': [0x95, 0x9c],
+	    '孥': [0x95, 0xd2, 0x6c],
+	    '学': [0xc9],
+	    '孩': [0x95, 0x20, 0x4c],
+	    '孫': [0x95, 0x4c],
+	    '孰': [0x95, 0x24, 0x1c],
+	    '孱': [0x75, 0x24, 0x9c],
+	    '孳': [0x95, 0x24, 0x4c],
+	    '孵': [0x13, 0x04, 0xaa],
+	    '學': [0xc1, 0xc0, 0x9c],
+	    '孺': [0x95, 0x66, 0x5c],
+	    '宀': [0x13, 0x02, 0x0a],
+	    '它': [0x13, 0x24, 0xce],
+	    '宅': [0x13, 0x4a],
+	    '宇': [0x25, 0x8a],
+	    '守': [0x13, 0xae],
+	    '安': [0x13, 0xda],
+	    '宋': [0x25, 0x8e],
+	    '完': [0x13, 0x2c],
+	    '宍': [0x13, 0xa0, 0x1e],
+	    '宏': [0x25, 0x3c],
+	    '宕': [0x13, 0x24, 0xea],
+	    '宗': [0x13, 0x5e],
+	    '官': [0x13, 0x2a],
+	    '宙': [0x13, 0x18],
+	    '定': [0x13, 0x78],
+	    '宛': [0x81, 0x1a],
+	    '宜': [0x13, 0xbc],
+	    '宝': [0x13, 0xde],
+	    '実': [0x13, 0xca],
+	    '客': [0x25, 0x3e],
+	    '宣': [0x13, 0xcc],
+	    '室': [0x13, 0xd8],
+	    '宥': [0x13, 0x34, 0x2a],
+	    '宦': [0x13, 0x10, 0xba],
+	    '宮': [0x13, 0xee],
+	    '宰': [0x13, 0xea],
+	    '害': [0x25, 0xde],
+	    '宴': [0x25, 0xcc],
+	    '宵': [0x25, 0xbc],
+	    '家': [0x1b],
+	    '宸': [0x13, 0x10, 0x3c],
+	    '容': [0x13, 0x6a],
+	    '宿': [0x2d],
+	    '寂': [0x13, 0x1a],
+	    '寃': [0x13, 0x52, 0x2c],
+	    '寄': [0x13, 0x8a],
+	    '寅': [0x13, 0x1e],
+	    '密': [0x13, 0x58],
+	    '寇': [0x13, 0x02, 0x2c],
+	    '寉': [0x13, 0x10, 0x0e],
+	    '富': [0x25, 0xda],
+	    '寐': [0x13, 0x86, 0x18],
+	    '寒': [0x13, 0xb8],
+	    '寓': [0x13, 0x9a],
+	    '寔': [0x13, 0xc4, 0x78],
+	    '寛': [0x25, 0xfe],
+	    '寝': [0x25, 0x6c],
+	    '寞': [0x13, 0x24, 0x9a],
+	    '察': [0x13, 0xaa],
+	    '寡': [0x13, 0x5a],
+	    '寢': [0x25, 0x24, 0x6c],
+	    '寤': [0x13, 0x22, 0x3e],
+	    '寥': [0x13, 0x24, 0x1a],
+	    '實': [0x13, 0x12, 0xca],
+	    '寧': [0x25, 0x7e],
+	    '寨': [0x13, 0x24, 0x8e],
+	    '審': [0x13, 0x5c],
+	    '寫': [0x13, 0x24, 0x0a],
+	    '寮': [0x13, 0x3c],
+	    '寰': [0x13, 0x24, 0x3a],
+	    '寳': [0x03, 0x12, 0xde],
+	    '寵': [0x25, 0xea],
+	    '寶': [0x13, 0x12, 0xde],
+	    '寸': [0xa1, 0xae],
+	    '寺': [0x73, 0xae],
+	    '対': [0x63, 0x0e],
+	    '寿': [0xd7, 0xae],
+	    '封': [0x73, 0x7a],
+	    '専': [0x11, 0x7e],
+	    '射': [0xe7, 0xae],
+	    '尅': [0x35, 0x30, 0xae],
+	    '将': [0xd7, 0x0c],
+	    '將': [0xd7, 0xd6, 0x0c],
+	    '專': [0x11, 0x10, 0x7e],
+	    '尉': [0x75, 0x5e],
+	    '尊': [0xb7, 0xae],
+	    '尋': [0x37, 0xae],
+	    '對': [0x63, 0x62, 0x0e],
+	    '導': [0xc7, 0xae],
+	    '小': [0x31, 0xbc],
+	    '少': [0xd5, 0xbc],
+	    '尓': [0xb5, 0xa0, 0x2e],
+	    '尖': [0xb5, 0x30, 0x9e],
+	    '尚': [0x81, 0xca],
+	    '尠': [0xf5, 0xd4, 0xbc],
+	    '尢': [0x41, 0x98],
+	    '尤': [0x81, 0x98],
+	    '尨': [0x97, 0x24, 0x1a],
+	    '尭': [0x81, 0x7a],
+	    '就': [0xc1, 0x98],
+	    '尸': [0x75, 0x88],
+	    '尹': [0x81, 0x0e],
+	    '尺': [0x31, 0x6a],
+	    '尻': [0x75, 0xa8],
+	    '尼': [0x75, 0x98],
+	    '尽': [0xd3, 0xf8],
+	    '尾': [0x75, 0xbe],
+	    '尿': [0x75, 0x4e],
+	    '局': [0x75, 0xfc],
+	    '屁': [0x75, 0x38],
+	    '居': [0x75, 0x0a],
+	    '屆': [0x75, 0x74, 0x6a],
+	    '屈': [0x75, 0xde],
+	    '届': [0x75, 0x6a],
+	    '屋': [0x75, 0xd8],
+	    '屍': [0x75, 0xae],
+	    '屎': [0x75, 0x54, 0x0a],
+	    '屏': [0x75, 0x24, 0x7c],
+	    '屐': [0x75, 0x24, 0xca],
+	    '屑': [0xb5, 0x7c],
+	    '屓': [0x75, 0x24, 0x68],
+	    '展': [0x75, 0x7c],
+	    '属': [0x75, 0xee],
+	    '屠': [0xd5, 0xcc],
+	    '屡': [0x75, 0x3a],
+	    '層': [0x75, 0xbc],
+	    '履': [0x75, 0xba],
+	    '屬': [0x75, 0x74, 0xee],
+	    '屮': [0x81, 0x80, 0x9a],
+	    '屯': [0x31, 0xda],
+	    '山': [0x51, 0x0a],
+	    '屶': [0x51, 0x10, 0x5a],
+	    '屹': [0x51, 0xc0, 0x1c],
+	    '岌': [0x51, 0x10, 0x4c],
+	    '岐': [0x51, 0xca],
+	    '岑': [0x51, 0x26, 0x0a],
+	    '岔': [0x51, 0x12, 0x2e],
+	    '岡': [0xe5, 0xd8],
+	    '岨': [0x51, 0x20, 0xbc],
+	    '岩': [0xe3, 0x58],
+	    '岫': [0x51, 0x62, 0x18],
+	    '岬': [0x51, 0x9c],
+	    '岱': [0x51, 0x90, 0xec],
+	    '岳': [0x93, 0x58],
+	    '岶': [0x51, 0x12, 0xcc],
+	    '岷': [0x51, 0xe6, 0xe8],
+	    '岸': [0x51, 0x8a],
+	    '岻': [0x51, 0x02, 0xe8],
+	    '岼': [0x51, 0x26, 0x8a],
+	    '岾': [0x51, 0x36, 0x7c],
+	    '峅': [0x51, 0xf2, 0x7c],
+	    '峇': [0x51, 0x26, 0xec],
+	    '峙': [0x51, 0x72, 0xae],
+	    '峠': [0x51, 0x1a],
+	    '峡': [0x51, 0x4a],
+	    '峨': [0x51, 0xe4, 0x0a],
+	    '峩': [0x51, 0x24, 0xec],
+	    '峪': [0x51, 0x62, 0x0a],
+	    '峭': [0x51, 0xb4, 0x8c],
+	    '峯': [0x51, 0x24, 0xdc],
+	    '峰': [0x51, 0xdc],
+	    '島': [0xb7, 0x58],
+	    '峺': [0x51, 0xc4, 0x4a],
+	    '峻': [0x51, 0x12, 0xfa],
+	    '峽': [0x51, 0x50, 0x4a],
+	    '崇': [0x51, 0x5e],
+	    '崋': [0x51, 0x12, 0x8a],
+	    '崎': [0x51, 0x9e],
+	    '崑': [0x51, 0x12, 0x38],
+	    '崔': [0x51, 0x12, 0x0e],
+	    '崕': [0x51, 0xc0, 0x7a],
+	    '崖': [0x51, 0x12, 0x7a],
+	    '崗': [0x51, 0xe4, 0xd8],
+	    '崘': [0x51, 0xc0, 0x3a],
+	    '崙': [0x51, 0x12, 0x3a],
+	    '崚': [0x51, 0x12, 0xba],
+	    '崛': [0x51, 0x74, 0xde],
+	    '崟': [0x51, 0x24, 0x8a],
+	    '崢': [0x51, 0xb4, 0x2c],
+	    '崩': [0x51, 0x2a],
+	    '嵋': [0x51, 0xf6, 0xbe],
+	    '嵌': [0x51, 0xe8],
+	    '嵎': [0x51, 0x12, 0x9a],
+	    '嵐': [0x51, 0xfa],
+	    '嵒': [0x51, 0x36, 0x1a],
+	    '嵜': [0x51, 0x12, 0x9e],
+	    '嵩': [0x51, 0x30, 0x1e],
+	    '嵬': [0x51, 0x14, 0x4e],
+	    '嵯': [0x51, 0xb4, 0x9c],
+	    '嵳': [0x51, 0x12, 0xbc],
+	    '嵶': [0x51, 0xd0, 0xd8],
+	    '嶂': [0x51, 0x12, 0xea],
+	    '嶄': [0x51, 0xf2, 0x68],
+	    '嶇': [0x51, 0xf4, 0x48],
+	    '嶋': [0x51, 0xb6, 0x0a],
+	    '嶌': [0x51, 0x12, 0xbe],
+	    '嶐': [0x51, 0xa2, 0xbe],
+	    '嶝': [0x51, 0xb2, 0x7c],
+	    '嶢': [0x51, 0x24, 0x7a],
+	    '嶬': [0x51, 0xb4, 0xec],
+	    '嶮': [0x51, 0x2e],
+	    '嶷': [0x51, 0x50, 0x78],
+	    '嶺': [0x51, 0x1c],
+	    '嶼': [0x51, 0x24, 0x18],
+	    '嶽': [0x51, 0x6c],
+	    '巉': [0x51, 0x52, 0x2c],
+	    '巌': [0x51, 0xb8],
+	    '巍': [0x51, 0x12, 0x1c],
+	    '巒': [0x51, 0x12, 0x1e],
+	    '巓': [0x51, 0x14, 0x7e],
+	    '巖': [0x51, 0x50, 0xb8],
+	    '巛': [0x83, 0x24, 0x0a],
+	    '川': [0x83, 0x0a],
+	    '州': [0x83, 0x18],
+	    '巡': [0xc3, 0x8a],
+	    '巣': [0x83, 0x8e],
+	    '工': [0x95, 0x0a],
+	    '左': [0x31, 0x4c],
+	    '巧': [0x95, 0xfc],
+	    '巨': [0x03, 0xba],
+	    '巫': [0x91, 0xda],
+	    '差': [0xb5, 0x9c],
+	    '己': [0xa1, 0x8e],
+	    '已': [0x41, 0x8e],
+	    '巳': [0x05, 0x8e],
+	    '巴': [0x21, 0xce],
+	    '巵': [0x71, 0x24, 0xce],
+	    '巷': [0x21, 0xaa],
+	    '巻': [0x97, 0xaa],
+	    '巽': [0x41, 0x9c],
+	    '巾': [0xa7, 0x48],
+	    '市': [0xaf],
+	    '布': [0x35, 0xae],
+	    '帆': [0xa7, 0xc8],
+	    '帋': [0xa7, 0x02, 0xe8],
+	    '希': [0xf7, 0xae],
+	    '帑': [0xa7, 0xd2, 0x6c],
+	    '帖': [0xa7, 0x24, 0x7c],
+	    '帙': [0xa7, 0x80, 0x9e],
+	    '帚': [0x21, 0x2e],
+	    '帛': [0xa7, 0xc4, 0x0a],
+	    '帝': [0xe3, 0xae],
+	    '帥': [0xa7, 0x8c],
+	    '師': [0xa7, 0x2a],
+	    '席': [0x71, 0xbe],
+	    '帯': [0xa7, 0x78],
+	    '帰': [0xe1, 0x2e],
+	    '帳': [0xa7, 0x7c],
+	    '帶': [0xa7, 0xa6, 0x78],
+	    '帷': [0xa7, 0x0e],
+	    '常': [0xc1, 0xae],
+	    '帽': [0xa7, 0xfe],
+	    '幀': [0xa7, 0x60, 0x7c],
+	    '幃': [0xa7, 0x24, 0x0e],
+	    '幄': [0xa7, 0x74, 0xd8],
+	    '幅': [0xa7, 0xda],
+	    '幇': [0xa7, 0x72, 0x7a],
+	    '幌': [0xa7, 0x2e],
+	    '幎': [0xa7, 0xc0, 0xcc],
+	    '幔': [0xa7, 0xea],
+	    '幕': [0x93, 0xae],
+	    '幗': [0xa7, 0xe4, 0xde],
+	    '幟': [0xa7, 0xcc],
+	    '幡': [0xa7, 0x54, 0x6a],
+	    '幢': [0xa7, 0xe2, 0x2e],
+	    '幣': [0xb1, 0xae],
+	    '幤': [0xb1, 0xb0, 0xae],
+	    '干': [0x11, 0x8a],
+	    '平': [0x27, 0x8a],
+	    '年': [0xc5, 0x8a],
+	    '幵': [0x41, 0x5e],
+	    '并': [0x41, 0x7c],
+	    '幸': [0x73, 0x8a],
+	    '幹': [0x35, 0x8a],
+	    '幺': [0x45, 0x48],
+	    '幻': [0x45, 0x18],
+	    '幼': [0x45, 0x0a],
+	    '幽': [0x45, 0x4c],
+	    '幾': [0x45, 0xec],
+	    '广': [0x71, 0x48],
+	    '庁': [0x71, 0x3c],
+	    '広': [0x71, 0x9c],
+	    '庄': [0x11, 0x7a],
+	    '庇': [0x71, 0x38],
+	    '床': [0x71, 0x8e],
+	    '序': [0x71, 0x78],
+	    '底': [0x71, 0xe8],
+	    '庖': [0x71, 0xf4, 0x0c],
+	    '店': [0x79],
+	    '庚': [0xa1, 0x5c],
+	    '府': [0x71, 0xae],
+	    '庠': [0x71, 0x24, 0xbc],
+	    '度': [0x71, 0x6c],
+	    '座': [0x71, 0x4a],
+	    '庫': [0x71, 0xfa],
+	    '庭': [0x71, 0xde],
+	    '庵': [0x71, 0x3a],
+	    '庶': [0x71, 0x7c],
+	    '康': [0x71, 0xd8],
+	    '庸': [0x71, 0xec],
+	    '廁': [0x71, 0x24, 0x5a],
+	    '廂': [0x71, 0x86, 0xfe],
+	    '廃': [0x71, 0xba],
+	    '廈': [0x71, 0x24, 0xba],
+	    '廉': [0x71, 0x9e],
+	    '廊': [0x71, 0x58],
+	    '廏': [0x71, 0x24, 0x5c],
+	    '廐': [0x71, 0x50, 0x98],
+	    '廓': [0x71, 0xa2, 0x9c],
+	    '廖': [0x71, 0xf2, 0x0c],
+	    '廚': [0x71, 0x24, 0x7c],
+	    '廛': [0x71, 0xa6, 0x9a],
+	    '廝': [0x71, 0xc0, 0x8e],
+	    '廟': [0x71, 0x34, 0x8c],
+	    '廠': [0x71, 0x80, 0xca],
+	    '廡': [0x71, 0xf2, 0xf8],
+	    '廢': [0x71, 0x70, 0xba],
+	    '廣': [0x71, 0x70, 0x9c],
+	    '廨': [0x71, 0xe4, 0xbc],
+	    '廩': [0x71, 0xe4, 0x3e],
+	    '廬': [0x71, 0x24, 0x6a],
+	    '廰': [0x03, 0x70, 0x3c],
+	    '廱': [0x71, 0xe4, 0xce],
+	    '廳': [0x71, 0x70, 0x3c],
+	    '廴': [0xc3, 0x02, 0x0a],
+	    '延': [0xc3, 0x0a],
+	    '廷': [0xc3, 0xde],
+	    '廸': [0xc3, 0x62, 0x18],
+	    '建': [0xc3, 0xda],
+	    '廻': [0xc3, 0x3e],
+	    '廼': [0xc3, 0x30, 0x4e],
+	    '廾': [0x81, 0x7c],
+	    '廿': [0xa1, 0x7c],
+	    '弁': [0xf3, 0x7c],
+	    '弃': [0xc1, 0xc0, 0x78],
+	    '弄': [0xd7, 0x7c],
+	    '弉': [0x75, 0xd6, 0x7a],
+	    '弊': [0xb1, 0x7c],
+	    '弋': [0x41, 0xec],
+	    '弌': [0x03, 0x32, 0x0a],
+	    '弍': [0x03, 0xe4, 0x0e],
+	    '式': [0xe5, 0x0c],
+	    '弐': [0xe5, 0x0e],
+	    '弑': [0xe5, 0xf6, 0x5c],
+	    '弓': [0xd1, 0x0a],
+	    '弔': [0xd1, 0x28],
+	    '引': [0xd1, 0x18],
+	    '弖': [0x03, 0xd0, 0x0a],
+	    '弗': [0x81, 0xfe],
+	    '弘': [0xd1, 0x24, 0xfa],
+	    '弛': [0xd1, 0x6e],
+	    '弟': [0xd1, 0x2c],
+	    '弥': [0xd1, 0x24, 0xc8],
+	    '弦': [0xd1, 0xc8],
+	    '弧': [0xd1, 0x9c],
+	    '弩': [0xd1, 0xd2, 0x6c],
+	    '弭': [0xd1, 0x24, 0xee],
+	    '弯': [0x81, 0xd8],
+	    '弱': [0xd1, 0xd8],
+	    '張': [0xd1, 0x7c],
+	    '強': [0xd1, 0xfa],
+	    '弸': [0xd1, 0x22, 0x2a],
+	    '弼': [0xd1, 0xa0, 0xfe],
+	    '弾': [0xd1, 0x3e],
+	    '彁': [0xd1, 0x30, 0x8a],
+	    '彈': [0xd1, 0xd0, 0x3e],
+	    '彊': [0xd1, 0x24, 0x6a],
+	    '彌': [0xd1, 0xe4, 0xfe],
+	    '彎': [0x81, 0x80, 0xd8],
+	    '彑': [0x81, 0x80, 0x1a],
+	    '当': [0xc1, 0xda],
+	    '彖': [0x11, 0x10, 0xbc],
+	    '彗': [0x97, 0x24, 0xba],
+	    '彙': [0x13, 0x0e],
+	    '彜': [0x75, 0x26, 0x5c],
+	    '彝': [0x75, 0xc0, 0x5c],
+	    '彡': [0x11, 0x10, 0x1a],
+	    '形': [0x57, 0x1a],
+	    '彦': [0x71, 0x1a],
+	    '彩': [0x67, 0x1a],
+	    '彪': [0x13, 0xb2, 0x48],
+	    '彫': [0xe5, 0x1a],
+	    '彬': [0x87, 0xa4, 0x1a],
+	    '彭': [0x21, 0x1a],
+	    '彰': [0xe3, 0x1a],
+	    '影': [0xc5, 0x1a],
+	    '彳': [0xd1, 0x48],
+	    '彷': [0xd1, 0x24, 0xdc],
+	    '役': [0xd1, 0x5c],
+	    '彼': [0xd1, 0xce],
+	    '彿': [0xd1, 0x24, 0xfe],
+	    '往': [0xd1, 0xde],
+	    '征': [0xd1, 0x0e],
+	    '徂': [0xd1, 0x20, 0xbc],
+	    '徃': [0xd1, 0xb6, 0x0e],
+	    '径': [0xd1, 0x9e],
+	    '待': [0xd1, 0xae],
+	    '徇': [0xd1, 0xc4, 0xba],
+	    '很': [0xd1, 0x24, 0x58],
+	    '徊': [0xd1, 0xe4, 0x3e],
+	    '律': [0xd1, 0xda],
+	    '後': [0xd1, 0x4c],
+	    '徐': [0xd1, 0xfc],
+	    '徑': [0xd1, 0xd0, 0x9e],
+	    '徒': [0xd1, 0xca],
+	    '従': [0xd1, 0x78],
+	    '得': [0xd1, 0xcc],
+	    '徘': [0xd1, 0xf8],
+	    '徙': [0xd1, 0x24, 0xe8],
+	    '從': [0xd1, 0xd0, 0x78],
+	    '徠': [0xd1, 0x86, 0x4a],
+	    '御': [0xd1, 0xaa],
+	    '徨': [0xd1, 0xc4, 0xde],
+	    '復': [0xd1, 0xba],
+	    '循': [0xd1, 0xfe],
+	    '徭': [0xd1, 0xc0, 0x8a],
+	    '微': [0xd1, 0xb8],
+	    '徳': [0xd1, 0x3c],
+	    '徴': [0xd1, 0x58],
+	    '徹': [0xd1, 0x2a],
+	    '徼': [0xd1, 0x24, 0xb8],
+	    '徽': [0xd1, 0x24, 0x4c],
+	    '心': [0xad],
+	    '必': [0xa5, 0x28],
+	    '忌': [0x87, 0x3a],
+	    '忍': [0x53, 0xac],
+	    '忖': [0x33, 0x30, 0xae],
+	    '志': [0x73, 0xac],
+	    '忘': [0xd5, 0xac],
+	    '忙': [0x33, 0xdc],
+	    '応': [0x71, 0xac],
+	    '忝': [0x97, 0x3a],
+	    '忠': [0x25, 0xac],
+	    '忤': [0x33, 0xb4, 0x18],
+	    '快': [0x33, 0x7e],
+	    '忰': [0x33, 0x24, 0x1c],
+	    '忱': [0x33, 0x24, 0xc8],
+	    '念': [0x27, 0xac],
+	    '忸': [0x33, 0x40, 0xbc],
+	    '忻': [0x33, 0x30, 0x68],
+	    '忽': [0xa1, 0xac],
+	    '忿': [0x27, 0x24, 0xac],
+	    '怎': [0x33, 0x80, 0xaa],
+	    '怏': [0x33, 0x1c],
+	    '怐': [0x33, 0xf4, 0x28],
+	    '怒': [0xd3, 0xac],
+	    '怕': [0x33, 0xc4, 0x0a],
+	    '怖': [0x33, 0xae],
+	    '怙': [0x33, 0x36, 0x3c],
+	    '怛': [0x33, 0x10, 0xcc],
+	    '怜': [0x33, 0x90, 0x3c],
+	    '思': [0x63, 0xac],
+	    '怠': [0x43, 0xac],
+	    '怡': [0x33, 0x10, 0x4a],
+	    '急': [0x93, 0x1a],
+	    '怦': [0x33, 0x26, 0x8a],
+	    '性': [0x3b],
+	    '怨': [0xa3, 0xac],
+	    '怩': [0x33, 0x74, 0x98],
+	    '怪': [0x33, 0x9e],
+	    '怫': [0x33, 0x24, 0xfe],
+	    '怯': [0x33, 0x9c],
+	    '怱': [0x95, 0xac],
+	    '怺': [0x33, 0xb0, 0x18],
+	    '恁': [0x33, 0x90, 0x4e],
+	    '恂': [0x33, 0xc4, 0xba],
+	    '恃': [0x33, 0x72, 0xae],
+	    '恆': [0x33, 0x32, 0xcc],
+	    '恊': [0x33, 0x24, 0x5a],
+	    '恋': [0x17, 0xac],
+	    '恍': [0x33, 0xc0, 0x0c],
+	    '恐': [0xc1, 0xac],
+	    '恒': [0x33, 0xcc],
+	    '恕': [0xd3, 0x24, 0xac],
+	    '恙': [0xf3, 0xb4, 0x0c],
+	    '恚': [0x73, 0x24, 0xac],
+	    '恟': [0x33, 0x24, 0xfc],
+	    '恠': [0x33, 0x34, 0x7a],
+	    '恢': [0x33, 0x70, 0xf8],
+	    '恣': [0x33, 0xb0, 0xe8],
+	    '恤': [0x33, 0x8c],
+	    '恥': [0xe7, 0xac],
+	    '恨': [0x33, 0x58],
+	    '恩': [0x97, 0xac],
+	    '恪': [0x33, 0xb2, 0x3e],
+	    '恫': [0x33, 0xe4, 0x7c],
+	    '恬': [0x33, 0x36, 0xbe],
+	    '恭': [0x95, 0x3a],
+	    '息': [0xf7, 0xac],
+	    '恰': [0x33, 0x26, 0xec],
+	    '恵': [0xf3, 0xac],
+	    '恷': [0x33, 0x42, 0x8e],
+	    '悁': [0x33, 0x24, 0x2a],
+	    '悃': [0x33, 0xe4, 0x8e],
+	    '悄': [0x33, 0xb4, 0x8c],
+	    '悉': [0x67, 0x24, 0xac],
+	    '悋': [0x33, 0xc8],
+	    '悌': [0x33, 0xd0, 0x2c],
+	    '悍': [0x33, 0x8a],
+	    '悒': [0x33, 0xe4, 0xce],
+	    '悔': [0x33, 0xca],
+	    '悖': [0x33, 0x24, 0x3c],
+	    '悗': [0x33, 0x52, 0x2c],
+	    '悚': [0x33, 0x86, 0xa8],
+	    '悛': [0x33, 0xfa],
+	    '悟': [0x33, 0x3e],
+	    '悠': [0x91, 0xd8],
+	    '患': [0x37, 0xac],
+	    '悦': [0x33, 0x2c],
+	    '悧': [0x33, 0x54, 0x5a],
+	    '悩': [0x33, 0x6e],
+	    '悪': [0x03, 0xac],
+	    '悲': [0xf1, 0xac],
+	    '悳': [0x33, 0x34, 0xfe],
+	    '悴': [0x33, 0x14, 0x3c],
+	    '悵': [0x33, 0x10, 0x7c],
+	    '悶': [0xf5, 0xac],
+	    '悸': [0x33, 0x54, 0x9c],
+	    '悼': [0x33, 0x7c],
+	    '悽': [0x33, 0xd2, 0xaa],
+	    '情': [0x33, 0xbe],
+	    '惆': [0x33, 0xe4, 0x7a],
+	    '惇': [0x33, 0xc0, 0x9c],
+	    '惑': [0xe5, 0xac],
+	    '惓': [0x33, 0x96, 0xaa],
+	    '惘': [0x33, 0x20, 0xdc],
+	    '惚': [0x33, 0xac],
+	    '惜': [0x33, 0x5e],
+	    '惟': [0x33, 0x0e],
+	    '惠': [0xf3, 0xf2, 0xac],
+	    '惡': [0x03, 0x02, 0xac],
+	    '惣': [0xb5, 0x3a],
+	    '惧': [0x33, 0x60, 0x28],
+	    '惨': [0x33, 0x1a],
+	    '惰': [0x33, 0x2a],
+	    '惱': [0x33, 0x32, 0x6e],
+	    '想': [0x87, 0xac],
+	    '惴': [0x33, 0x24, 0x5c],
+	    '惶': [0x33, 0xc4, 0xde],
+	    '惷': [0x33, 0x96, 0xcc],
+	    '惹': [0x33, 0x92, 0xa8],
+	    '惺': [0x33, 0xc4, 0x0e],
+	    '惻': [0x33, 0x5a],
+	    '愀': [0x33, 0x54, 0xf8],
+	    '愁': [0x55, 0xac],
+	    '愃': [0x33, 0x12, 0xcc],
+	    '愆': [0x33, 0x24, 0xd8],
+	    '愈': [0xd1, 0x24, 0xac],
+	    '愉': [0x33, 0xd8],
+	    '愍': [0x33, 0xe6, 0xe8],
+	    '愎': [0x33, 0x24, 0xba],
+	    '意': [0x03, 0x4a],
+	    '愕': [0x33, 0x24, 0x9e],
+	    '愚': [0x93, 0xac],
+	    '愛': [0xc1, 0x0a],
+	    '感': [0xc7, 0xac],
+	    '愡': [0x33, 0x24, 0x9c],
+	    '愧': [0x33, 0x14, 0x4e],
+	    '愨': [0x33, 0x72, 0x6c],
+	    '愬': [0x33, 0x22, 0xca],
+	    '愴': [0x33, 0x26, 0x1c],
+	    '愼': [0x33, 0x32, 0xfe],
+	    '愽': [0x03, 0x34, 0x7e],
+	    '愾': [0x33, 0xf4, 0x0a],
+	    '愿': [0x33, 0x70, 0x0a],
+	    '慂': [0x33, 0x24, 0x7a],
+	    '慄': [0x33, 0x4e],
+	    '慇': [0xe7, 0x24, 0xac],
+	    '慈': [0x45, 0xac],
+	    '慊': [0x33, 0x26, 0x9e],
+	    '態': [0x23, 0xac],
+	    '慌': [0x33, 0x9a],
+	    '慍': [0x33, 0x24, 0x8c],
+	    '慎': [0x33, 0xfe],
+	    '慓': [0x33, 0x46, 0x5e],
+	    '慕': [0x93, 0x3a],
+	    '慘': [0x33, 0x32, 0x1a],
+	    '慙': [0x33, 0xf2, 0x68],
+	    '慚': [0x33, 0xc0, 0xfa],
+	    '慝': [0x33, 0xf4, 0xa8],
+	    '慟': [0x33, 0x26, 0x5a],
+	    '慢': [0x33, 0xea],
+	    '慣': [0x33, 0x7a],
+	    '慥': [0x33, 0xc2, 0x9a],
+	    '慧': [0x97, 0x24, 0xac],
+	    '慨': [0x33, 0x98],
+	    '慫': [0x33, 0xd0, 0x78],
+	    '慮': [0xb3, 0xac],
+	    '慯': [0x33, 0x24, 0xa8],
+	    '慰': [0x75, 0xac],
+	    '慱': [0x33, 0x24, 0x7e],
+	    '慳': [0x33, 0x72, 0xba],
+	    '慴': [0x33, 0xf2, 0xcc],
+	    '慵': [0x33, 0x70, 0xec],
+	    '慶': [0xb5, 0xac],
+	    '慷': [0x33, 0x70, 0xd8],
+	    '慾': [0x33, 0x62, 0xe8],
+	    '憂': [0x03, 0xd8],
+	    '憇': [0xb7, 0xb6, 0xac],
+	    '憊': [0x33, 0x42, 0xce],
+	    '憎': [0x33, 0xbc],
+	    '憐': [0x33, 0x5c],
+	    '憑': [0xb5, 0x24, 0xac],
+	    '憔': [0x33, 0x06, 0xf8],
+	    '憖': [0x33, 0x86, 0x4a],
+	    '憙': [0x33, 0x72, 0xec],
+	    '憚': [0x33, 0x36, 0x3e],
+	    '憤': [0x33, 0xda],
+	    '憧': [0x33, 0x2e],
+	    '憩': [0xb7, 0xac],
+	    '憫': [0x33, 0xfc],
+	    '憬': [0x33, 0xc4, 0x3e],
+	    '憮': [0x33, 0xf2, 0xf8],
+	    '憲': [0x13, 0xac],
+	    '憶': [0x33, 0x4a],
+	    '憺': [0x33, 0x24, 0xcc],
+	    '憾': [0x33, 0xce],
+	    '懃': [0x53, 0x24, 0xac],
+	    '懆': [0x33, 0x36, 0x1a],
+	    '懇': [0x51, 0xac],
+	    '懈': [0x33, 0xe4, 0xbc],
+	    '應': [0x71, 0x70, 0xac],
+	    '懊': [0x33, 0xec],
+	    '懋': [0x33, 0x02, 0x78],
+	    '懌': [0x33, 0x24, 0x6a],
+	    '懍': [0x33, 0xe4, 0x3e],
+	    '懐': [0x33, 0x3a],
+	    '懣': [0x33, 0x46, 0xfe],
+	    '懦': [0x33, 0x66, 0x5c],
+	    '懲': [0xd1, 0xac],
+	    '懴': [0x03, 0x32, 0xee],
+	    '懶': [0x33, 0x14, 0xa8],
+	    '懷': [0x33, 0x32, 0x3a],
+	    '懸': [0xf7, 0x3a],
+	    '懺': [0x33, 0xee],
+	    '懼': [0x33, 0x24, 0x0e],
+	    '懽': [0x33, 0xc0, 0x9e],
+	    '懾': [0x33, 0xe6, 0xee],
+	    '懿': [0x33, 0x24, 0xe8],
+	    '戀': [0x17, 0x16, 0xac],
+	    '戈': [0x11, 0xec],
+	    '戉': [0xc1, 0xce],
+	    '戊': [0xa1, 0xce],
+	    '戌': [0x41, 0xce],
+	    '戍': [0x81, 0xce],
+	    '戎': [0x05, 0xec],
+	    '成': [0xb7, 0xce],
+	    '我': [0xe5, 0x0a],
+	    '戒': [0x75, 0xec],
+	    '戔': [0xe5, 0x28],
+	    '或': [0xe5, 0x18],
+	    '戚': [0xc7, 0x1a],
+	    '戛': [0x15, 0x24, 0xec],
+	    '戝': [0x61, 0x10, 0xec],
+	    '戞': [0x15, 0xc0, 0xec],
+	    '戟': [0x35, 0x10, 0xec],
+	    '戡': [0xf5, 0x24, 0xec],
+	    '戦': [0x37, 0xec],
+	    '截': [0xe7, 0x0e],
+	    '戮': [0xf3, 0x10, 0xec],
+	    '戯': [0xb3, 0xec],
+	    '戰': [0x37, 0x36, 0xec],
+	    '戲': [0xb3, 0xb2, 0xec],
+	    '戳': [0x51, 0x10, 0xec],
+	    '戴': [0xe7, 0x6a],
+	    '戸': [0x7d],
+	    '戻': [0x75, 0x9e],
+	    '房': [0x75, 0xdc],
+	    '所': [0x75, 0x68],
+	    '扁': [0x75, 0x24, 0xde],
+	    '扇': [0x75, 0xfa],
+	    '扈': [0x75, 0xe4, 0xce],
+	    '扉': [0x75, 0x10, 0xf8],
+	    '手': [0x7f],
+	    '才': [0x35, 0x18],
+	    '扎': [0x77, 0xa0, 0x68],
+	    '打': [0x77, 0x7e],
+	    '払': [0x77, 0xfe],
+	    '托': [0x77, 0x24, 0x98],
+	    '扛': [0x77, 0x94, 0x0a],
+	    '扞': [0x77, 0x24, 0x8a],
+	    '扠': [0x77, 0x02, 0x6c],
+	    '扣': [0x77, 0x24, 0x6a],
+	    '扨': [0x77, 0x02, 0x5a],
+	    '扮': [0x77, 0x24, 0x2e],
+	    '扱': [0x77, 0x4c],
+	    '扶': [0x77, 0x9e],
+	    '批': [0x77, 0x38],
+	    '扼': [0x77, 0x70, 0xaa],
+	    '找': [0x77, 0x10, 0xec],
+	    '承': [0xe3, 0xb8],
+	    '技': [0x77, 0xca],
+	    '抂': [0x77, 0xd6, 0x0a],
+	    '抃': [0x77, 0x30, 0xc8],
+	    '抄': [0x77, 0xbc],
+	    '抉': [0x77, 0x24, 0x7e],
+	    '把': [0x77, 0x24, 0xce],
+	    '抑': [0x77, 0xaa],
+	    '抒': [0x77, 0x10, 0x78],
+	    '抓': [0x77, 0x84, 0x7a],
+	    '抔': [0x77, 0x10, 0xda],
+	    '投': [0x77, 0x5c],
+	    '抖': [0x77, 0x30, 0x7c],
+	    '抗': [0x77, 0x2c],
+	    '折': [0x77, 0x68],
+	    '抛': [0x77, 0x12, 0x5a],
+	    '抜': [0x77, 0x6c],
+	    '択': [0x77, 0x6a],
+	    '披': [0x77, 0x10, 0xce],
+	    '抬': [0x77, 0x12, 0x4a],
+	    '抱': [0x77, 0xfc],
+	    '抵': [0x77, 0xe8],
+	    '抹': [0x77, 0x86, 0x28],
+	    '抻': [0x77, 0x20, 0xae],
+	    '押': [0x95, 0x7e],
+	    '抽': [0x77, 0x18],
+	    '拂': [0x77, 0x76, 0xfe],
+	    '担': [0x77, 0xcc],
+	    '拆': [0x77, 0x02, 0x68],
+	    '拇': [0x77, 0x30, 0xca],
+	    '拈': [0x77, 0x36, 0x7c],
+	    '拉': [0x77, 0xe2, 0x0a],
+	    '拊': [0x77, 0x42, 0xae],
+	    '拌': [0x77, 0x34, 0xca],
+	    '拍': [0xc5, 0x7e],
+	    '拏': [0x77, 0xd2, 0x6c],
+	    '拐': [0x77, 0x24, 0x5a],
+	    '拑': [0x77, 0x10, 0x3a],
+	    '拒': [0xb3, 0x7e],
+	    '拓': [0xe3, 0x7e],
+	    '拔': [0x77, 0x76, 0x6c],
+	    '拗': [0x77, 0x44, 0x0a],
+	    '拘': [0x77, 0x28],
+	    '拙': [0x77, 0xde],
+	    '招': [0x77, 0x5a],
+	    '拜': [0xc3, 0xc2, 0x0e],
+	    '拝': [0xc3, 0x0e],
+	    '拠': [0xb3, 0xbc],
+	    '拡': [0x77, 0x9c],
+	    '括': [0x37, 0x7e],
+	    '拭': [0x77, 0x24, 0xec],
+	    '拮': [0x77, 0x72, 0x3e],
+	    '拯': [0x77, 0x80, 0x4e],
+	    '拱': [0x77, 0x10, 0x9c],
+	    '拳': [0x97, 0x7e],
+	    '拵': [0x77, 0x34, 0x9c],
+	    '拶': [0x83, 0x6a],
+	    '拷': [0x75, 0x7e],
+	    '拾': [0x77, 0xec],
+	    '拿': [0x77, 0x26, 0xec],
+	    '持': [0x77, 0xae],
+	    '挂': [0x77, 0x24, 0x7a],
+	    '指': [0x77, 0x4e],
+	    '挈': [0x77, 0x10, 0x5a],
+	    '按': [0x77, 0xda],
+	    '挌': [0x77, 0xb2, 0x3e],
+	    '挑': [0x77, 0xa0, 0x2c],
+	    '挙': [0x13, 0x7e],
+	    '挟': [0x77, 0x24, 0x4a],
+	    '挧': [0x77, 0xf2, 0x0c],
+	    '挨': [0xf3, 0x58],
+	    '挫': [0x77, 0x70, 0x98],
+	    '振': [0x77, 0x3c],
+	    '挺': [0x77, 0xc2, 0xde],
+	    '挽': [0x77, 0x24, 0x2c],
+	    '挾': [0x77, 0x20, 0x4a],
+	    '挿': [0xb5, 0x7e],
+	    '捉': [0x77, 0xe6, 0x0c],
+	    '捌': [0x77, 0x36, 0x5e],
+	    '捍': [0x77, 0x10, 0x8a],
+	    '捏': [0x73, 0x7e],
+	    '捐': [0x77, 0x24, 0x2a],
+	    '捕': [0x77, 0xdc],
+	    '捗': [0xe1, 0x7e],
+	    '捜': [0x77, 0x1e],
+	    '捧': [0x77, 0x96, 0xdc],
+	    '捨': [0x77, 0xbe],
+	    '捩': [0x77, 0x74, 0x9e],
+	    '捫': [0x77, 0x24, 0xfc],
+	    '据': [0x77, 0x74, 0x0a],
+	    '捲': [0x77, 0x96, 0xaa],
+	    '捶': [0x77, 0x24, 0x4e],
+	    '捷': [0x77, 0x22, 0x8a],
+	    '捺': [0x77, 0x96, 0x98],
+	    '捻': [0x77, 0x3a],
+	    '掀': [0x77, 0xe0, 0x68],
+	    '掃': [0x77, 0x2e],
+	    '授': [0x77, 0xc8],
+	    '掉': [0x77, 0xc4, 0x7c],
+	    '掌': [0xc1, 0x7e],
+	    '掎': [0x77, 0x96, 0x8a],
+	    '掏': [0x77, 0x24, 0x7c],
+	    '排': [0x77, 0xf8],
+	    '掖': [0x77, 0xc0, 0x4a],
+	    '掘': [0x77, 0x7c],
+	    '掛': [0x77, 0x7a],
+	    '掟': [0x77, 0x12, 0x78],
+	    '掠': [0x77, 0xc0, 0x3e],
+	    '採': [0x77, 0x6e],
+	    '探': [0x77, 0xba],
+	    '掣': [0xb7, 0x7e],
+	    '接': [0x77, 0xea],
+	    '控': [0x77, 0x8e],
+	    '推': [0x77, 0x0e],
+	    '掩': [0x77, 0xac],
+	    '措': [0x77, 0x5e],
+	    '掫': [0x77, 0xe6, 0x6c],
+	    '掬': [0x77, 0xa4, 0x0c],
+	    '掲': [0x77, 0xb8],
+	    '掴': [0x77, 0xe4, 0xde],
+	    '掵': [0x77, 0x26, 0xaa],
+	    '掻': [0x77, 0x24, 0xfa],
+	    '掾': [0x77, 0x24, 0xbc],
+	    '揀': [0x77, 0x30, 0xce],
+	    '揃': [0x53, 0x7e],
+	    '揄': [0x77, 0x24, 0xd8],
+	    '揆': [0x77, 0xa0, 0xba],
+	    '揉': [0x77, 0x86, 0x78],
+	    '描': [0x77, 0x9a],
+	    '提': [0x77, 0x78],
+	    '插': [0xb5, 0xb4, 0x7e],
+	    '揖': [0x77, 0x24, 0x3e],
+	    '揚': [0x77, 0xa8],
+	    '換': [0x77, 0x8c],
+	    '握': [0x77, 0xd8],
+	    '揣': [0x77, 0x24, 0x5c],
+	    '揩': [0x77, 0x30, 0xcc],
+	    '揮': [0x77, 0xfa],
+	    '援': [0x77, 0x98],
+	    '揶': [0x77, 0xe6, 0xaa],
+	    '揺': [0x77, 0x8a],
+	    '搆': [0x77, 0xc0, 0xfa],
+	    '損': [0x77, 0x3e],
+	    '搏': [0x77, 0x24, 0xca],
+	    '搓': [0x77, 0xb4, 0x9c],
+	    '搖': [0x77, 0x76, 0x8a],
+	    '搗': [0x77, 0xb6, 0x58],
+	    '搜': [0x77, 0x76, 0x1e],
+	    '搦': [0x77, 0xd0, 0xd8],
+	    '搨': [0x77, 0x24, 0xcc],
+	    '搬': [0xd3, 0x7e],
+	    '搭': [0x77, 0x74, 0x2c],
+	    '搴': [0x77, 0xc0, 0x1a],
+	    '搶': [0x77, 0x26, 0x1c],
+	    '携': [0x45, 0x7e],
+	    '搾': [0x25, 0xaa],
+	    '摂': [0x77, 0xee],
+	    '摎': [0x77, 0x12, 0x1a],
+	    '摘': [0x77, 0x1c],
+	    '摧': [0x77, 0x24, 0x0e],
+	    '摩': [0x71, 0x7e],
+	    '摯': [0x77, 0x72, 0x1c],
+	    '摶': [0x77, 0x10, 0x7e],
+	    '摸': [0x77, 0x24, 0x9a],
+	    '摺': [0x77, 0xf2, 0xcc],
+	    '撃': [0xf3, 0x5c],
+	    '撈': [0x77, 0xc0, 0x5a],
+	    '撒': [0x77, 0x22, 0xb8],
+	    '撓': [0x77, 0x24, 0xc8],
+	    '撕': [0x77, 0x24, 0x68],
+	    '撚': [0x77, 0x96, 0xf8],
+	    '撞': [0x77, 0xe2, 0x2e],
+	    '撤': [0x77, 0x2a],
+	    '撥': [0x77, 0x24, 0xba],
+	    '撩': [0x77, 0x24, 0x3c],
+	    '撫': [0x77, 0xf2, 0xf8],
+	    '播': [0x77, 0x54, 0x6a],
+	    '撮': [0xe7, 0x7e],
+	    '撰': [0x77, 0x24, 0x9c],
+	    '撲': [0x77, 0x4a],
+	    '撹': [0x77, 0xc0, 0xfe],
+	    '撻': [0x77, 0xc6, 0x6a],
+	    '撼': [0x77, 0xc6, 0xac],
+	    '擁': [0x77, 0xce],
+	    '擂': [0x77, 0x66, 0x6a],
+	    '擅': [0x77, 0xe4, 0x3e],
+	    '擇': [0x77, 0x76, 0x6a],
+	    '操': [0x77, 0x1a],
+	    '擒': [0x77, 0x24, 0x8e],
+	    '擔': [0x77, 0x76, 0xcc],
+	    '擘': [0x77, 0x24, 0xea],
+	    '據': [0xb3, 0xb2, 0xbc],
+	    '擠': [0x77, 0xa2, 0xc8],
+	    '擡': [0x77, 0x10, 0x4a],
+	    '擢': [0x77, 0x24, 0x58],
+	    '擣': [0x77, 0xd6, 0xae],
+	    '擦': [0x57, 0x7e],
+	    '擧': [0x13, 0x12, 0x7e],
+	    '擬': [0x77, 0x58],
+	    '擯': [0x77, 0x12, 0x68],
+	    '擱': [0x77, 0xf4, 0xba],
+	    '擲': [0x77, 0x24, 0xaa],
+	    '擴': [0x77, 0x76, 0x9c],
+	    '擶': [0x77, 0x24, 0x6e],
+	    '擺': [0x77, 0xb2, 0x2a],
+	    '擽': [0x77, 0xc4, 0x4c],
+	    '擾': [0x77, 0x02, 0xd8],
+	    '攀': [0x77, 0x86, 0x8e],
+	    '攅': [0x77, 0x60, 0x9e],
+	    '攘': [0x77, 0x24, 0xee],
+	    '攜': [0x77, 0x50, 0x0a],
+	    '攝': [0x77, 0x76, 0xee],
+	    '攣': [0x17, 0x24, 0x7e],
+	    '攤': [0x77, 0x92, 0x0e],
+	    '攪': [0x77, 0x24, 0xfe],
+	    '攫': [0xf7, 0x7e],
+	    '攬': [0x77, 0xf6, 0xba],
+	    '支': [0xc3, 0x0c],
+	    '攴': [0x13, 0x10, 0x6c],
+	    '攵': [0x11, 0x10, 0xb8],
+	    '收': [0xd7, 0xd6, 0x6c],
+	    '攷': [0xf5, 0x24, 0xb8],
+	    '攸': [0x91, 0xb8],
+	    '改': [0x11, 0xb8],
+	    '攻': [0x95, 0xb8],
+	    '放': [0xd5, 0xb8],
+	    '政': [0xe1, 0xb8],
+	    '故': [0x37, 0xb8],
+	    '效': [0x67, 0x66, 0x5a],
+	    '敍': [0x03, 0x26, 0x6c],
+	    '敏': [0xc1, 0xb8],
+	    '救': [0x35, 0xb8],
+	    '敕': [0x53, 0x52, 0xa8],
+	    '敖': [0x41, 0xdc],
+	    '敗': [0x61, 0xb8],
+	    '敘': [0x27, 0x26, 0x6c],
+	    '教': [0x75, 0xb8],
+	    '敝': [0xb1, 0x40, 0xca],
+	    '敞': [0xb1, 0x80, 0xca],
+	    '敢': [0xe7, 0xb8],
+	    '散': [0x23, 0xb8],
+	    '敦': [0x95, 0x24, 0xb8],
+	    '敬': [0xf5, 0xb8],
+	    '数': [0xa9],
+	    '敲': [0xc3, 0x30, 0x1e],
+	    '整': [0xe1, 0xa8],
+	    '敵': [0x15, 0xb8],
+	    '敷': [0xf3, 0xb8],
+	    '數': [0xa1, 0xa0, 0xa8],
+	    '斂': [0x27, 0xb8],
+	    '斃': [0xb1, 0xd4, 0x0c],
+	    '文': [0xc1, 0x48],
+	    '斈': [0x95, 0xc0, 0x48],
+	    '斉': [0xa3, 0xc8],
+	    '斌': [0xc1, 0xe4, 0xe8],
+	    '斎': [0xc1, 0xaa],
+	    '斐': [0xf1, 0xc8],
+	    '斑': [0xd7, 0xc8],
+	    '斗': [0x31, 0x7c],
+	    '料': [0x75, 0x5c],
+	    '斛': [0xe5, 0x30, 0x7c],
+	    '斜': [0x27, 0x7c],
+	    '斟': [0xf5, 0x30, 0x7c],
+	    '斡': [0x35, 0x7c],
+	    '斤': [0x31, 0x68],
+	    '斥': [0x03, 0x68],
+	    '斧': [0x67, 0x1c],
+	    '斫': [0xe3, 0x24, 0x68],
+	    '斬': [0xf3, 0x68],
+	    '断': [0x61, 0x5c],
+	    '斯': [0x87, 0x24, 0x68],
+	    '新': [0xe3, 0x68],
+	    '斷': [0x61, 0x60, 0x5c],
+	    '方': [0xdd],
+	    '於': [0xd5, 0xc8],
+	    '施': [0xd5, 0x6e],
+	    '旁': [0x11, 0xdc],
+	    '旃': [0xd5, 0xd2, 0x18],
+	    '旄': [0xd5, 0x10, 0xbe],
+	    '旅': [0xd5, 0xd8],
+	    '旆': [0xd5, 0xae],
+	    '旋': [0xd5, 0x78],
+	    '旌': [0xd5, 0xb6, 0x0e],
+	    '族': [0xd5, 0x58],
+	    '旒': [0xd5, 0x24, 0x9a],
+	    '旗': [0xd5, 0x8e],
+	    '旙': [0xd5, 0x24, 0x5c],
+	    '旛': [0xd5, 0x54, 0x6a],
+	    '无': [0x81, 0x80, 0x98],
+	    '旡': [0x11, 0x10, 0x98],
+	    '既': [0x51, 0x98],
+	    '日': [0xcd],
+	    '旦': [0x11, 0xcc],
+	    '旧': [0xc5, 0x18],
+	    '旨': [0x11, 0x4e],
+	    '早': [0xc5, 0x3c],
+	    '旬': [0xc5, 0xba],
+	    '旭': [0xc5, 0xa0, 0x1c],
+	    '旱': [0xc5, 0x10, 0x8a],
+	    '旺': [0xc5, 0xd6, 0x0a],
+	    '旻': [0xc5, 0xc0, 0x48],
+	    '昂': [0xc5, 0x24, 0xaa],
+	    '昃': [0xc5, 0x90, 0x78],
+	    '昆': [0xc5, 0x38],
+	    '昇': [0xc5, 0x9a],
+	    '昊': [0xc5, 0x02, 0x9e],
+	    '昌': [0x27, 0xcc],
+	    '明': [0xc5, 0x2a],
+	    '昏': [0xc5, 0xe8],
+	    '易': [0xc5, 0xa8],
+	    '昔': [0xc5, 0x5e],
+	    '昜': [0xc5, 0x10, 0xa8],
+	    '星': [0xc5, 0x0e],
+	    '映': [0xc5, 0x1c],
+	    '春': [0x97, 0xcc],
+	    '昧': [0xc5, 0x86, 0x18],
+	    '昨': [0xc5, 0xaa],
+	    '昭': [0xc5, 0x5a],
+	    '是': [0xc5, 0x78],
+	    '昴': [0xc5, 0xa2, 0x1a],
+	    '昵': [0xc5, 0x74, 0x98],
+	    '昶': [0xc5, 0xb0, 0x18],
+	    '昼': [0x63, 0xcc],
+	    '昿': [0xc5, 0x24, 0x78],
+	    '晁': [0xc5, 0xa0, 0x2c],
+	    '時': [0xc5, 0xae],
+	    '晃': [0xc5, 0xc0, 0x0c],
+	    '晄': [0xc5, 0x24, 0xc8],
+	    '晉': [0xc5, 0xc4, 0xce],
+	    '晋': [0xc5, 0xce],
+	    '晏': [0xc5, 0x12, 0xda],
+	    '晒': [0xc5, 0x4e],
+	    '晝': [0x63, 0x62, 0xcc],
+	    '晞': [0xc5, 0xf6, 0xae],
+	    '晟': [0xc5, 0xb6, 0xce],
+	    '晢': [0xc5, 0x76, 0x68],
+	    '晤': [0xc5, 0x22, 0x3e],
+	    '晦': [0xc5, 0xca],
+	    '晧': [0xc5, 0x94, 0x9a],
+	    '晨': [0xc5, 0x10, 0x3c],
+	    '晩': [0xc5, 0x2c],
+	    '普': [0xe3, 0xda],
+	    '景': [0xc5, 0x3e],
+	    '晰': [0xc5, 0x24, 0x1c],
+	    '晴': [0xc5, 0xbe],
+	    '晶': [0xc5, 0xc8],
+	    '智': [0x51, 0xcc],
+	    '暁': [0xc5, 0x7a],
+	    '暃': [0xc5, 0x10, 0xf8],
+	    '暄': [0xc5, 0x12, 0xcc],
+	    '暇': [0xc5, 0x5c],
+	    '暈': [0xc5, 0x24, 0xfa],
+	    '暉': [0xc5, 0xc0, 0xfa],
+	    '暎': [0xc5, 0x92, 0x1c],
+	    '暑': [0xc5, 0xcc],
+	    '暖': [0xc5, 0x98],
+	    '暗': [0xc5, 0xea],
+	    '暘': [0xc5, 0x24, 0xa8],
+	    '暝': [0xc5, 0xc0, 0xcc],
+	    '暢': [0xa7, 0xa8],
+	    '暦': [0x95, 0xcc],
+	    '暫': [0xc5, 0xfa],
+	    '暮': [0x93, 0xcc],
+	    '暴': [0xc5, 0x9c],
+	    '暸': [0xc5, 0xc0, 0x3c],
+	    '暹': [0xc5, 0xc6, 0xce],
+	    '暼': [0xc5, 0x40, 0xca],
+	    '暾': [0xc5, 0x24, 0xb8],
+	    '曁': [0xc5, 0x50, 0x98],
+	    '曄': [0xc5, 0x92, 0x8a],
+	    '曇': [0xc5, 0x6e],
+	    '曉': [0xc5, 0xc4, 0x7a],
+	    '曖': [0xc5, 0xc0, 0x0a],
+	    '曙': [0xc5, 0xdc],
+	    '曚': [0xc5, 0x24, 0xbc],
+	    '曜': [0xc5, 0x58],
+	    '曝': [0xc5, 0xc4, 0x9c],
+	    '曠': [0xc5, 0x70, 0x9c],
+	    '曦': [0xc5, 0xb4, 0xec],
+	    '曩': [0xc5, 0x24, 0xee],
+	    '曰': [0xc5, 0x88],
+	    '曲': [0x63, 0x28],
+	    '曳': [0x81, 0xae],
+	    '更': [0xc5, 0x4a],
+	    '曵': [0x81, 0x80, 0xae],
+	    '曷': [0x81, 0xb8],
+	    '書': [0xc5, 0xda],
+	    '曹': [0x03, 0xbc],
+	    '曼': [0x21, 0xea],
+	    '曽': [0x11, 0xbc],
+	    '曾': [0x41, 0xbc],
+	    '替': [0xc5, 0x9e],
+	    '最': [0xc5, 0x6c],
+	    '會': [0x27, 0x26, 0x1e],
+	    '月': [0x2b],
+	    '有': [0x35, 0x2a],
+	    '朋': [0x23, 0x2a],
+	    '服': [0x23, 0x4c],
+	    '朏': [0x23, 0x30, 0xde],
+	    '朔': [0x23, 0xca],
+	    '朕': [0x23, 0x9e],
+	    '朖': [0x23, 0x30, 0x58],
+	    '朗': [0x23, 0x58],
+	    '望': [0xd5, 0x2a],
+	    '朝': [0x35, 0x8c],
+	    '朞': [0x23, 0x24, 0x8e],
+	    '期': [0x23, 0x8e],
+	    '朦': [0x23, 0x24, 0xbc],
+	    '朧': [0x23, 0xea],
+	    '木': [0x8f],
+	    '未': [0x87, 0x18],
+	    '末': [0x87, 0x28],
+	    '本': [0x87, 0x88],
+	    '札': [0x87, 0x68],
+	    '朮': [0x03, 0x4e],
+	    '朱': [0x21, 0x8a],
+	    '朴': [0x87, 0x24, 0x7c],
+	    '朶': [0x87, 0x02, 0x4c],
+	    '朷': [0x87, 0x10, 0x5a],
+	    '朸': [0x87, 0x12, 0x5a],
+	    '机': [0x87, 0xc8],
+	    '朽': [0x87, 0xfc],
+	    '朿': [0x03, 0x86, 0xa8],
+	    '杁': [0x87, 0x30, 0x4a],
+	    '杆': [0x87, 0x24, 0x8a],
+	    '杉': [0xa5, 0x1a],
+	    '李': [0xa5, 0x24, 0x9c],
+	    '杏': [0xa5, 0x3e],
+	    '材': [0x35, 0x8e],
+	    '村': [0x87, 0xae],
+	    '杓': [0x87, 0x30, 0xfc],
+	    '杖': [0x87, 0xf8],
+	    '杙': [0x87, 0xc0, 0xec],
+	    '杜': [0xa5, 0x86, 0x1a],
+	    '杞': [0xa5, 0xa0, 0x8e],
+	    '束': [0x87, 0xa8],
+	    '杠': [0x87, 0x24, 0x9c],
+	    '条': [0xb3, 0x8e],
+	    '杢': [0x87, 0x94, 0x0a],
+	    '杣': [0x87, 0x50, 0x0a],
+	    '杤': [0xa5, 0xc0, 0xa8],
+	    '来': [0x87, 0x4a],
+	    '杪': [0x87, 0xd4, 0xbc],
+	    '杭': [0x87, 0x2c],
+	    '杯': [0x87, 0xda],
+	    '杰': [0x87, 0xf0, 0x0a],
+	    '東': [0x31, 0xce],
+	    '杲': [0xc5, 0x24, 0x8e],
+	    '杳': [0x87, 0xc0, 0xcc],
+	    '杵': [0x87, 0xb4, 0x18],
+	    '杷': [0xa5, 0xc0, 0xce],
+	    '杼': [0x87, 0x10, 0x78],
+	    '松': [0xa5, 0x9c],
+	    '板': [0x87, 0xe8],
+	    '枅': [0x87, 0x40, 0x5e],
+	    '枇': [0xa5, 0xc0, 0x38],
+	    '枉': [0x87, 0xd6, 0x0a],
+	    '枋': [0xa5, 0x24, 0xdc],
+	    '枌': [0xa5, 0xc0, 0x2e],
+	    '析': [0x87, 0x1c],
+	    '枕': [0x87, 0xee],
+	    '林': [0x87, 0x8e],
+	    '枚': [0x87, 0xb8],
+	    '果': [0x63, 0x8e],
+	    '枝': [0x87, 0xca],
+	    '枠': [0x87, 0x24, 0x3c],
+	    '枡': [0x87, 0x30, 0x9a],
+	    '枢': [0x87, 0xba],
+	    '枦': [0x87, 0xc0, 0x7c],
+	    '枩': [0xa5, 0x80, 0x9c],
+	    '枯': [0x87, 0x3c],
+	    '枳': [0xa5, 0x36, 0xca],
+	    '枴': [0x87, 0xc0, 0x5a],
+	    '架': [0x37, 0x8e],
+	    '枷': [0x87, 0x52, 0x3e],
+	    '枸': [0xa5, 0xf4, 0x28],
+	    '枹': [0x87, 0xf4, 0x0c],
+	    '柁': [0x87, 0x24, 0xce],
+	    '柄': [0x87, 0x1e],
+	    '柆': [0x87, 0xc0, 0xea],
+	    '柊': [0xa5, 0xb2, 0x0a],
+	    '柎': [0x87, 0x42, 0xae],
+	    '柏': [0xa5, 0xcc],
+	    '某': [0x33, 0x8e],
+	    '柑': [0xa5, 0x10, 0x3a],
+	    '染': [0xb1, 0x8e],
+	    '柔': [0x87, 0x78],
+	    '柘': [0xa5, 0x12, 0xea],
+	    '柚': [0xa5, 0x62, 0x18],
+	    '柝': [0x87, 0xc0, 0x68],
+	    '柞': [0xa5, 0x24, 0xaa],
+	    '柢': [0x87, 0x70, 0xe8],
+	    '柤': [0x87, 0x20, 0xbc],
+	    '柧': [0x87, 0xa4, 0x7a],
+	    '柩': [0x87, 0xb2, 0x18],
+	    '柬': [0x81, 0x80, 0xce],
+	    '柮': [0x87, 0x30, 0xde],
+	    '柯': [0x87, 0x30, 0x8a],
+	    '柱': [0x87, 0xde],
+	    '柳': [0xa5, 0xaa],
+	    '柴': [0x87, 0x38],
+	    '柵': [0x87, 0x24, 0xde],
+	    '査': [0x87, 0xcc],
+	    '柾': [0xa5, 0xe0, 0x0e],
+	    '柿': [0xa5, 0xae],
+	    '栂': [0xa5, 0x30, 0xca],
+	    '栃': [0xa5, 0xa0, 0xea],
+	    '栄': [0xc1, 0x8e],
+	    '栓': [0x87, 0x26, 0xde],
+	    '栖': [0x87, 0x30, 0x4e],
+	    '栗': [0xa5, 0x4e],
+	    '栞': [0x87, 0x10, 0x8a],
+	    '校': [0x87, 0x6e],
+	    '栢': [0xa5, 0xa0, 0xfe],
+	    '栩': [0xa5, 0xc0, 0xfa],
+	    '株': [0x87, 0x8a],
+	    '栫': [0x87, 0x34, 0x9c],
+	    '栲': [0x87, 0x74, 0x28],
+	    '栴': [0xa5, 0xd2, 0x18],
+	    '核': [0x87, 0x4c],
+	    '根': [0x87, 0x58],
+	    '格': [0x87, 0x3e],
+	    '栽': [0xe7, 0x8e],
+	    '桀': [0x87, 0x24, 0x9e],
+	    '桁': [0xd1, 0x8e],
+	    '桂': [0xa5, 0x24, 0x7a],
+	    '桃': [0xa5, 0x2c],
+	    '框': [0x87, 0x24, 0xfc],
+	    '案': [0xd3, 0x8e],
+	    '桍': [0x87, 0xc0, 0x9e],
+	    '桎': [0x87, 0x10, 0xd8],
+	    '桐': [0xa5, 0x7c],
+	    '桑': [0xa5, 0x6c],
+	    '桓': [0x87, 0x20, 0xcc],
+	    '桔': [0x87, 0x72, 0x3e],
+	    '桙': [0x87, 0x20, 0xfa],
+	    '桜': [0xa5, 0x0a],
+	    '桝': [0x87, 0x20, 0x0e],
+	    '桟': [0x87, 0x24, 0xec],
+	    '档': [0x87, 0xc0, 0xda],
+	    '桧': [0xa5, 0x2e],
+	    '桴': [0x87, 0x04, 0x1a],
+	    '桶': [0x87, 0x24, 0x7a],
+	    '桷': [0x87, 0xe4, 0x88],
+	    '桾': [0xa5, 0x14, 0x0a],
+	    '桿': [0x87, 0x12, 0x8a],
+	    '梁': [0x87, 0x24, 0x4e],
+	    '梃': [0x87, 0xc2, 0xde],
+	    '梅': [0xa5, 0xca],
+	    '梍': [0x87, 0xc0, 0x58],
+	    '梏': [0x87, 0x94, 0x9a],
+	    '梓': [0xa5, 0x3c],
+	    '梔': [0xa5, 0x24, 0x3e],
+	    '梗': [0xa5, 0xc4, 0x4a],
+	    '梛': [0xa5, 0x24, 0x4a],
+	    '條': [0xb3, 0xb2, 0x8e],
+	    '梟': [0x87, 0x24, 0xbe],
+	    '梠': [0x87, 0x80, 0xee],
+	    '梢': [0x87, 0xb4, 0x8c],
+	    '梦': [0xd5, 0x86, 0x8e],
+	    '梧': [0xa5, 0x22, 0x3e],
+	    '梨': [0xa5, 0x54, 0x5a],
+	    '梭': [0x87, 0x24, 0xfa],
+	    '梯': [0x87, 0xd0, 0x2c],
+	    '械': [0x87, 0x7c],
+	    '梱': [0x87, 0xe4, 0x8e],
+	    '梳': [0x87, 0x24, 0x9a],
+	    '梵': [0x87, 0x10, 0xc8],
+	    '梶': [0x87, 0x74, 0xbe],
+	    '梹': [0x87, 0x92, 0x2e],
+	    '梺': [0x87, 0x30, 0xc8],
+	    '梼': [0x87, 0xd6, 0xae],
+	    '棄': [0xc1, 0x78],
+	    '棆': [0x87, 0x24, 0x3a],
+	    '棉': [0xa5, 0x24, 0xfe],
+	    '棊': [0x87, 0xc0, 0x8e],
+	    '棋': [0x87, 0x24, 0x8e],
+	    '棍': [0x87, 0xc4, 0x38],
+	    '棒': [0x87, 0xdc],
+	    '棔': [0x87, 0xc4, 0xe8],
+	    '棕': [0xa5, 0x12, 0x5e],
+	    '棗': [0x87, 0x86, 0xa8],
+	    '棘': [0xa5, 0x86, 0xa8],
+	    '棚': [0x87, 0x8c],
+	    '棟': [0x87, 0x30, 0xce],
+	    '棠': [0xa5, 0x80, 0xca],
+	    '棡': [0x87, 0xe4, 0xd8],
+	    '棣': [0xa5, 0xc0, 0xd8],
+	    '棧': [0x87, 0x10, 0xec],
+	    '森': [0x87, 0x1a],
+	    '棯': [0x87, 0x26, 0xac],
+	    '棲': [0x87, 0xaa],
+	    '棹': [0x87, 0xc4, 0x7c],
+	    '棺': [0x87, 0x2a],
+	    '椀': [0x87, 0x24, 0x1a],
+	    '椁': [0x87, 0xc0, 0x9c],
+	    '椄': [0x87, 0xd2, 0xea],
+	    '椅': [0xa5, 0x9e],
+	    '椈': [0xa5, 0xa4, 0x0c],
+	    '椋': [0xa5, 0xc0, 0x3e],
+	    '椌': [0x87, 0x12, 0x8e],
+	    '植': [0xf7, 0x8e],
+	    '椎': [0xa5, 0x24, 0x0e],
+	    '椏': [0xa5, 0x02, 0x0a],
+	    '椒': [0xa5, 0x12, 0x6c],
+	    '椙': [0x87, 0x26, 0xcc],
+	    '椚': [0xa5, 0xc0, 0xfc],
+	    '椛': [0x87, 0x92, 0x38],
+	    '検': [0x87, 0x2e],
+	    '椡': [0x87, 0xd0, 0x5a],
+	    '椢': [0x87, 0xe4, 0xde],
+	    '椣': [0x87, 0x62, 0x2e],
+	    '椥': [0x87, 0x50, 0x3e],
+	    '椦': [0x87, 0x96, 0x5a],
+	    '椨': [0x87, 0x70, 0xae],
+	    '椪': [0x87, 0xe2, 0xea],
+	    '椰': [0xa5, 0xe6, 0xaa],
+	    '椴': [0x87, 0x10, 0x5c],
+	    '椶': [0xa5, 0xf4, 0x88],
+	    '椹': [0xa5, 0x02, 0x8e],
+	    '椽': [0x87, 0xc0, 0xbc],
+	    '椿': [0xa5, 0x96, 0xcc],
+	    '楊': [0xa5, 0x24, 0xa8],
+	    '楓': [0xa5, 0xfa],
+	    '楔': [0x87, 0x52, 0x9e],
+	    '楕': [0x87, 0x24, 0x2a],
+	    '楙': [0xa5, 0x02, 0x78],
+	    '楚': [0xa5, 0x86, 0x8e],
+	    '楜': [0xa5, 0x80, 0x2a],
+	    '楝': [0xa5, 0x30, 0xce],
+	    '楞': [0x87, 0xa0, 0x3a],
+	    '楠': [0xa5, 0x30, 0xee],
+	    '楡': [0xa5, 0x20, 0xd8],
+	    '楢': [0xa5, 0xb6, 0x88],
+	    '楪': [0x87, 0x24, 0x78],
+	    '楫': [0x87, 0x36, 0xee],
+	    '業': [0xb5, 0x8e],
+	    '楮': [0xa5, 0x74, 0xcc],
+	    '楯': [0x87, 0x70, 0xfe],
+	    '楳': [0xa5, 0x32, 0x8e],
+	    '楴': [0xa5, 0xe2, 0xae],
+	    '極': [0x87, 0xea],
+	    '楷': [0x87, 0x30, 0xcc],
+	    '楸': [0xa5, 0x54, 0xf8],
+	    '楹': [0x87, 0x24, 0x8c],
+	    '楼': [0x87, 0x6a],
+	    '楽': [0xc5, 0x4c],
+	    '楾': [0x87, 0xc4, 0xb8],
+	    '榁': [0xa5, 0x12, 0xd8],
+	    '概': [0x87, 0x98],
+	    '榊': [0xa5, 0x56, 0xae],
+	    '榎': [0xa5, 0x1c],
+	    '榑': [0xa5, 0x10, 0x7e],
+	    '榔': [0xa5, 0x50, 0xaa],
+	    '榕': [0x87, 0x12, 0x6a],
+	    '榛': [0xa5, 0x96, 0x5c],
+	    '榜': [0x87, 0x24, 0xdc],
+	    '榠': [0xa5, 0xc0, 0xcc],
+	    '榧': [0xa5, 0x24, 0xfc],
+	    '榮': [0xc1, 0xc0, 0x8e],
+	    '榱': [0x87, 0x24, 0x5e],
+	    '榲': [0xa5, 0x24, 0x8c],
+	    '榴': [0xa5, 0x22, 0x6a],
+	    '榻': [0x87, 0xf2, 0x0c],
+	    '榾': [0xa5, 0x82, 0x2a],
+	    '榿': [0xa5, 0x20, 0x58],
+	    '槁': [0x87, 0x30, 0x1e],
+	    '槃': [0x87, 0xd2, 0x5c],
+	    '槊': [0x87, 0x22, 0xca],
+	    '構': [0x87, 0xfa],
+	    '槌': [0x87, 0xce],
+	    '槍': [0x87, 0x26, 0x1c],
+	    '槎': [0x87, 0xb4, 0x9c],
+	    '槐': [0xa5, 0x14, 0x4e],
+	    '槓': [0x87, 0x60, 0x9c],
+	    '様': [0x87, 0xbc],
+	    '槙': [0xa5, 0x02, 0xfe],
+	    '槝': [0x87, 0xb6, 0x58],
+	    '槞': [0x87, 0xe2, 0xac],
+	    '槧': [0x87, 0xf2, 0x68],
+	    '槨': [0x87, 0xa2, 0x9c],
+	    '槫': [0x87, 0x10, 0x7e],
+	    '槭': [0xa5, 0xc6, 0x1a],
+	    '槲': [0xa5, 0xe4, 0x88],
+	    '槹': [0x87, 0xc4, 0x0a],
+	    '槻': [0xa5, 0x96, 0x2c],
+	    '槽': [0x87, 0x02, 0xbc],
+	    '槿': [0xa5, 0x24, 0x8e],
+	    '樂': [0xc5, 0xc4, 0x4c],
+	    '樅': [0xa5, 0xd0, 0x78],
+	    '樊': [0x97, 0x86, 0x8e],
+	    '樋': [0x87, 0xc2, 0x7a],
+	    '樌': [0x87, 0x30, 0x7a],
+	    '樒': [0xa5, 0x12, 0x58],
+	    '樓': [0x87, 0x86, 0x6a],
+	    '樔': [0x87, 0x82, 0x8e],
+	    '樗': [0xa5, 0x66, 0x0a],
+	    '標': [0x87, 0x4e],
+	    '樛': [0x87, 0xc0, 0xfa],
+	    '樞': [0x87, 0x86, 0xba],
+	    '樟': [0xa5, 0xe2, 0x3c],
+	    '模': [0x87, 0x9a],
+	    '樢': [0x87, 0xb6, 0x0a],
+	    '樣': [0x87, 0x86, 0xbc],
+	    '権': [0x87, 0x9e],
+	    '横': [0x87, 0x9c],
+	    '樫': [0xa5, 0x72, 0xba],
+	    '樮': [0x87, 0x24, 0xf8],
+	    '樵': [0x87, 0x06, 0xf8],
+	    '樶': [0x87, 0xc4, 0x6c],
+	    '樸': [0x87, 0x24, 0x4a],
+	    '樹': [0x87, 0xd8],
+	    '樺': [0xa5, 0x92, 0x8a],
+	    '樽': [0x87, 0x24, 0x6a],
+	    '橄': [0xa5, 0xe6, 0xb8],
+	    '橇': [0x87, 0xc0, 0xc8],
+	    '橈': [0x87, 0x24, 0xc8],
+	    '橋': [0x87, 0x5c],
+	    '橘': [0xa5, 0x24, 0x78],
+	    '橙': [0xa5, 0xb2, 0x7c],
+	    '機': [0x87, 0xec],
+	    '橡': [0xa5, 0xb4, 0x88],
+	    '橢': [0x87, 0xa2, 0x2a],
+	    '橦': [0x87, 0xe2, 0x2e],
+	    '橲': [0x87, 0x72, 0xec],
+	    '橸': [0x87, 0xc4, 0xc8],
+	    '橿': [0xa5, 0x24, 0x6a],
+	    '檀': [0xa5, 0xc0, 0xec],
+	    '檄': [0x87, 0x24, 0xb8],
+	    '檍': [0xa5, 0x02, 0x4a],
+	    '檎': [0xa5, 0x24, 0x2e],
+	    '檐': [0x87, 0x12, 0xcc],
+	    '檗': [0xa5, 0xc0, 0xea],
+	    '檜': [0xa5, 0xa4, 0x2e],
+	    '檠': [0x87, 0xf4, 0xb8],
+	    '檢': [0x87, 0x86, 0x2e],
+	    '檣': [0x87, 0xe4, 0x3e],
+	    '檪': [0xa5, 0xc4, 0x4c],
+	    '檬': [0xa5, 0x24, 0xbc],
+	    '檮': [0x87, 0xc0, 0xde],
+	    '檳': [0xa5, 0x12, 0x68],
+	    '檸': [0xa5, 0x24, 0x7e],
+	    '檻': [0x87, 0xb2, 0x8c],
+	    '櫁': [0xa5, 0x12, 0xfa],
+	    '櫂': [0x87, 0x24, 0x58],
+	    '櫃': [0x87, 0x60, 0x8e],
+	    '櫑': [0x87, 0x62, 0x6a],
+	    '櫓': [0x87, 0x24, 0xcc],
+	    '櫚': [0xa5, 0x80, 0xee],
+	    '櫛': [0x87, 0x66, 0xaa],
+	    '櫞': [0xa5, 0x44, 0xbc],
+	    '櫟': [0xa5, 0x24, 0xcc],
+	    '櫨': [0xa5, 0xc0, 0x6a],
+	    '櫪': [0x87, 0x94, 0xe8],
+	    '櫺': [0x87, 0x66, 0x0a],
+	    '櫻': [0xa5, 0xa4, 0x0a],
+	    '欄': [0xf5, 0xce],
+	    '欅': [0xa5, 0x7e],
+	    '權': [0x87, 0x86, 0x9e],
+	    '欒': [0x17, 0x24, 0x8e],
+	    '欖': [0xa5, 0xf6, 0xba],
+	    '欝': [0xb3, 0xae],
+	    '欟': [0xa5, 0x96, 0xfe],
+	    '欠': [0xe1, 0x0a],
+	    '次': [0xb1, 0xe8],
+	    '欣': [0xe1, 0x68],
+	    '欧': [0xf5, 0xe8],
+	    '欲': [0x63, 0xe8],
+	    '欷': [0xe1, 0xf6, 0xae],
+	    '欸': [0xe1, 0x80, 0xfa],
+	    '欹': [0xe1, 0x96, 0x8a],
+	    '欺': [0xe1, 0x8e],
+	    '欽': [0xe1, 0x8a],
+	    '款': [0xe1, 0x5e],
+	    '歃': [0xb5, 0xe0, 0x0a],
+	    '歇': [0xb1, 0xe0, 0x0a],
+	    '歉': [0xe1, 0x26, 0x9e],
+	    '歌': [0x83, 0xe8],
+	    '歎': [0x93, 0xe8],
+	    '歐': [0xf5, 0xf4, 0xe8],
+	    '歓': [0x97, 0xe8],
+	    '歔': [0xe1, 0xb2, 0xf8],
+	    '歙': [0xe1, 0x26, 0xec],
+	    '歛': [0xe1, 0x80, 0x2e],
+	    '歟': [0xe1, 0x24, 0x18],
+	    '歡': [0x97, 0x96, 0xe8],
+	    '止': [0xe9],
+	    '正': [0xe1, 0x0e],
+	    '此': [0x31, 0x18],
+	    '武': [0xe5, 0xe8],
+	    '歩': [0xe1, 0xbc],
+	    '歪': [0xd3, 0xe0, 0x0e],
+	    '歯': [0xe1, 0x5c],
+	    '歳': [0xe1, 0xce],
+	    '歴': [0x95, 0xe8],
+	    '歸': [0xe1, 0xe0, 0x2e],
+	    '歹': [0xd5, 0x04, 0x0c],
+	    '死': [0xd5, 0x0c],
+	    '歿': [0xd5, 0x46, 0x5c],
+	    '殀': [0xd5, 0x24, 0x9e],
+	    '殃': [0xd5, 0x96, 0x1c],
+	    '殄': [0xd5, 0x24, 0x1a],
+	    '殆': [0xd5, 0x4a],
+	    '殉': [0xd5, 0xba],
+	    '殊': [0xd5, 0x8a],
+	    '残': [0xd5, 0xec],
+	    '殍': [0xd5, 0xc0, 0x1a],
+	    '殕': [0xd5, 0x24, 0xea],
+	    '殖': [0xd5, 0xfe],
+	    '殘': [0xd5, 0xd4, 0xec],
+	    '殞': [0xd5, 0x60, 0x3e],
+	    '殤': [0xd5, 0x24, 0xa8],
+	    '殪': [0xd5, 0x32, 0x0a],
+	    '殫': [0xd5, 0x36, 0x3e],
+	    '殯': [0xd5, 0x12, 0x68],
+	    '殱': [0xd5, 0xee],
+	    '殲': [0xd5, 0xd4, 0xee],
+	    '殳': [0x11, 0x10, 0x5c],
+	    '殴': [0xf5, 0x5c],
+	    '段': [0x11, 0x5c],
+	    '殷': [0xe7, 0x24, 0x5c],
+	    '殺': [0xf7, 0x5c],
+	    '殻': [0x73, 0x6c],
+	    '殼': [0x73, 0x72, 0x6c],
+	    '殿': [0x95, 0x5c],
+	    '毀': [0x53, 0x5c],
+	    '毅': [0xe3, 0x24, 0xbc],
+	    '毆': [0xf5, 0xf4, 0x5c],
+	    '毋': [0x03, 0x30, 0xca],
+	    '母': [0x31, 0xca],
+	    '毎': [0xc1, 0xca],
+	    '毒': [0xd7, 0xca],
+	    '毓': [0xc1, 0x10, 0x9a],
+	    '比': [0x39],
+	    '毘': [0x63, 0x38],
+	    '毛': [0x11, 0xbe],
+	    '毟': [0xd5, 0xbe],
+	    '毫': [0xc1, 0xbe],
+	    '毬': [0x11, 0xd6, 0x4e],
+	    '毯': [0xb7, 0xf0, 0xf8],
+	    '毳': [0xb7, 0x10, 0xbe],
+	    '氈': [0xe5, 0x10, 0xbe],
+	    '氏': [0x03, 0xe8],
+	    '民': [0xe7, 0xe8],
+	    '氓': [0xd5, 0xe6, 0xe8],
+	    '气': [0xf5, 0x02, 0x0a],
+	    '気': [0xf5, 0x0a],
+	    '氛': [0x27, 0xf4, 0x0a],
+	    '氣': [0xf5, 0xf4, 0x0a],
+	    '氤': [0xf5, 0xe4, 0x9e],
+	    '水': [0x4f],
+	    '氷': [0xb9],
+	    '永': [0xb1, 0x18],
+	    '氾': [0x47, 0x24, 0xaa],
+	    '汀': [0x47, 0xa0, 0x7e],
+	    '汁': [0x47, 0x24, 0x3c],
+	    '求': [0x35, 0x4e],
+	    '汎': [0x47, 0x10, 0xc8],
+	    '汐': [0x47, 0xd4, 0x0a],
+	    '汕': [0x47, 0x50, 0x0a],
+	    '汗': [0xb1, 0x8a],
+	    '汚': [0xb1, 0xfc],
+	    '汝': [0xd3, 0xb8],
+	    '汞': [0x47, 0x94, 0x0a],
+	    '江': [0xb1, 0x9c],
+	    '池': [0x47, 0x6e],
+	    '汢': [0xb1, 0x24, 0x7a],
+	    '汨': [0xb1, 0x24, 0xcc],
+	    '汪': [0x47, 0xd6, 0x0a],
+	    '汰': [0xb1, 0x0c],
+	    '汲': [0x47, 0x10, 0x4c],
+	    '汳': [0x47, 0xc2, 0xe8],
+	    '決': [0x47, 0x7e],
+	    '汽': [0x47, 0xfc],
+	    '汾': [0x47, 0x24, 0x2e],
+	    '沁': [0x47, 0x24, 0xac],
+	    '沂': [0x47, 0x30, 0x68],
+	    '沃': [0x47, 0x24, 0x9e],
+	    '沈': [0xb1, 0xc8],
+	    '沌': [0x47, 0x30, 0xda],
+	    '沍': [0x47, 0x30, 0x8c],
+	    '沐': [0x47, 0x24, 0x8e],
+	    '沒': [0x47, 0x46, 0x5c],
+	    '沓': [0x47, 0xc4, 0x88],
+	    '沖': [0x47, 0x2c],
+	    '沙': [0xb1, 0xdc],
+	    '沚': [0x47, 0xc0, 0xe8],
+	    '沛': [0x47, 0x24, 0xae],
+	    '没': [0x47, 0x5c],
+	    '沢': [0x63, 0x4e],
+	    '沫': [0x47, 0x86, 0x28],
+	    '沮': [0x47, 0x20, 0xbc],
+	    '沱': [0x47, 0x24, 0xce],
+	    '河': [0x47, 0x8a],
+	    '沸': [0xb1, 0xfe],
+	    '油': [0x63, 0xb8],
+	    '沺': [0x47, 0x24, 0x6a],
+	    '治': [0xb1, 0x4a],
+	    '沼': [0x47, 0x5a],
+	    '沽': [0x47, 0x36, 0x3c],
+	    '沾': [0x47, 0x36, 0x7c],
+	    '沿': [0x47, 0x1e],
+	    '況': [0xb1, 0x2c],
+	    '泄': [0x47, 0x34, 0x78],
+	    '泅': [0x47, 0xe4, 0x4a],
+	    '泉': [0xc5, 0xb8],
+	    '泊': [0xb1, 0xcc],
+	    '泌': [0xb1, 0xac],
+	    '泓': [0x47, 0xd0, 0x0a],
+	    '法': [0x47, 0x9c],
+	    '泗': [0x47, 0xa0, 0x3a],
+	    '泙': [0x47, 0x26, 0x8a],
+	    '泛': [0x47, 0x04, 0x5c],
+	    '泝': [0x47, 0x02, 0x68],
+	    '泡': [0x47, 0x48],
+	    '波': [0x47, 0xce],
+	    '泣': [0x47, 0xea],
+	    '泥': [0x47, 0x98],
+	    '注': [0x47, 0xde],
+	    '泪': [0x47, 0x24, 0xfe],
+	    '泯': [0x47, 0xe6, 0xe8],
+	    '泰': [0x97, 0x4e],
+	    '泱': [0x47, 0x96, 0x1c],
+	    '泳': [0x47, 0x18],
+	    '洋': [0xb5, 0x4e],
+	    '洌': [0x47, 0xd4, 0x5a],
+	    '洒': [0x47, 0x24, 0x4e],
+	    '洗': [0x47, 0xc8],
+	    '洙': [0x47, 0x20, 0x8a],
+	    '洛': [0x47, 0x3e],
+	    '洞': [0x47, 0xe4, 0x7c],
+	    '洟': [0x47, 0xd0, 0x4a],
+	    '津': [0xb1, 0xda],
+	    '洩': [0x47, 0xae],
+	    '洪': [0x47, 0x10, 0x9c],
+	    '洫': [0x47, 0x02, 0x8c],
+	    '洲': [0x47, 0x82, 0x18],
+	    '洳': [0x47, 0xd2, 0x3e],
+	    '洵': [0x47, 0xc4, 0xba],
+	    '洶': [0x47, 0xf4, 0x88],
+	    '洸': [0x47, 0xc0, 0x0c],
+	    '活': [0x47, 0xbe],
+	    '洽': [0x47, 0x26, 0xec],
+	    '派': [0xb1, 0xee],
+	    '流': [0x47, 0x9a],
+	    '浄': [0xb1, 0xbc],
+	    '浅': [0x47, 0xec],
+	    '浙': [0x47, 0x76, 0x68],
+	    '浚': [0x47, 0xc0, 0xfa],
+	    '浜': [0x47, 0x2e],
+	    '浣': [0x47, 0x12, 0x2c],
+	    '浤': [0xb1, 0x24, 0x3c],
+	    '浦': [0x47, 0xdc],
+	    '浩': [0x95, 0x4e],
+	    '浪': [0x47, 0x58],
+	    '浬': [0x47, 0x30, 0x2e],
+	    '浮': [0xb1, 0x1a],
+	    '浴': [0xb1, 0x6a],
+	    '海': [0x47, 0xca],
+	    '浸': [0xb1, 0x6c],
+	    '浹': [0x47, 0x24, 0x4a],
+	    '涅': [0x47, 0x24, 0x7a],
+	    '消': [0x47, 0xbc],
+	    '涌': [0x47, 0xc0, 0x7a],
+	    '涎': [0x47, 0xc2, 0x0a],
+	    '涓': [0x47, 0xc0, 0x2a],
+	    '涕': [0x47, 0xd0, 0x2c],
+	    '涙': [0x47, 0x9e],
+	    '涛': [0x47, 0xd6, 0xae],
+	    '涜': [0x47, 0x72, 0x68],
+	    '涯': [0xb1, 0x7a],
+	    '液': [0x47, 0x4a],
+	    '涵': [0x47, 0xe4, 0xea],
+	    '涸': [0x47, 0xe4, 0x3c],
+	    '涼': [0xb1, 0x3e],
+	    '淀': [0x47, 0x12, 0x78],
+	    '淅': [0x47, 0x86, 0x1c],
+	    '淆': [0x47, 0xf6, 0x8c],
+	    '淇': [0x47, 0x10, 0x8e],
+	    '淋': [0x47, 0x86, 0x8e],
+	    '淌': [0x47, 0x80, 0xca],
+	    '淑': [0x47, 0x1a],
+	    '淒': [0x47, 0xd2, 0xaa],
+	    '淕': [0x47, 0x12, 0xfa],
+	    '淘': [0x47, 0x24, 0x7c],
+	    '淙': [0x47, 0x12, 0x5e],
+	    '淞': [0x47, 0xa4, 0x9c],
+	    '淡': [0x47, 0xf8],
+	    '淤': [0x47, 0xd4, 0xc8],
+	    '淦': [0xb1, 0x24, 0x8a],
+	    '淨': [0xb1, 0xb0, 0xbc],
+	    '淪': [0x47, 0x24, 0x3a],
+	    '淫': [0xb1, 0x4e],
+	    '淬': [0x47, 0x14, 0x3c],
+	    '淮': [0x47, 0x24, 0x0e],
+	    '深': [0x47, 0xba],
+	    '淳': [0xb1, 0xec],
+	    '淵': [0x47, 0x24, 0x5a],
+	    '混': [0x47, 0x38],
+	    '淹': [0x47, 0x80, 0xac],
+	    '淺': [0x47, 0x46, 0xec],
+	    '添': [0xb1, 0x3a],
+	    '清': [0xb1, 0xbe],
+	    '渇': [0xb1, 0xb8],
+	    '済': [0xb1, 0xaa],
+	    '渉': [0xe1, 0x4e],
+	    '渊': [0x47, 0x12, 0x5a],
+	    '渋': [0x47, 0xe8],
+	    '渓': [0x45, 0x4e],
+	    '渕': [0x47, 0xc0, 0x5a],
+	    '渙': [0x47, 0xc0, 0x8c],
+	    '渚': [0x47, 0x74, 0xcc],
+	    '減': [0xc7, 0x4e],
+	    '渝': [0x47, 0xc0, 0xd8],
+	    '渟': [0x47, 0x80, 0x7e],
+	    '渠': [0xb3, 0x4e],
+	    '渡': [0x47, 0x6c],
+	    '渣': [0x47, 0x86, 0xcc],
+	    '渤': [0x47, 0x52, 0x3c],
+	    '渥': [0x47, 0x74, 0xd8],
+	    '渦': [0x47, 0x24, 0x8a],
+	    '温': [0x47, 0x8c],
+	    '渫': [0x47, 0x24, 0x78],
+	    '測': [0xb1, 0x5a],
+	    '渭': [0x47, 0x62, 0x8c],
+	    '渮': [0x47, 0x30, 0x8a],
+	    '港': [0x47, 0xaa],
+	    '游': [0x47, 0xc2, 0x48],
+	    '渺': [0x47, 0xd4, 0xbc],
+	    '渾': [0x47, 0x24, 0xfa],
+	    '湃': [0x47, 0xc2, 0x0e],
+	    '湊': [0x47, 0x96, 0x9e],
+	    '湍': [0x47, 0x24, 0x5c],
+	    '湎': [0x47, 0xf6, 0x18],
+	    '湖': [0x47, 0x2a],
+	    '湘': [0x47, 0x86, 0xfe],
+	    '湛': [0x47, 0x02, 0x8e],
+	    '湟': [0x47, 0xc4, 0xde],
+	    '湧': [0x47, 0x52, 0x6a],
+	    '湫': [0x47, 0x54, 0xf8],
+	    '湮': [0x47, 0x30, 0x4e],
+	    '湯': [0x47, 0xa8],
+	    '湲': [0x47, 0x24, 0x98],
+	    '湶': [0x47, 0xc4, 0xb8],
+	    '湾': [0x47, 0xd8],
+	    '湿': [0x47, 0x0e],
+	    '満': [0x47, 0xfe],
+	    '溂': [0x47, 0x86, 0x5a],
+	    '溌': [0x47, 0x24, 0xba],
+	    '溏': [0x47, 0x70, 0xfc],
+	    '源': [0xb1, 0x78],
+	    '準': [0xb1, 0x3c],
+	    '溘': [0x47, 0x72, 0x9c],
+	    '溜': [0x47, 0x22, 0x6a],
+	    '溝': [0x47, 0xfa],
+	    '溟': [0x47, 0xc0, 0xcc],
+	    '溢': [0xb1, 0x2e],
+	    '溥': [0x47, 0x10, 0x7e],
+	    '溪': [0x45, 0x44, 0x4e],
+	    '溯': [0x47, 0x22, 0xca],
+	    '溲': [0x47, 0x24, 0x1e],
+	    '溶': [0x47, 0x6a],
+	    '溷': [0x47, 0x24, 0xec],
+	    '溺': [0x47, 0xd0, 0xd8],
+	    '溽': [0x47, 0xa6, 0x3c],
+	    '滂': [0x47, 0x24, 0xdc],
+	    '滄': [0x47, 0x26, 0x1c],
+	    '滅': [0xc7, 0xf8],
+	    '滉': [0xb1, 0xc0, 0x0c],
+	    '滋': [0x47, 0x4c],
+	    '滌': [0x47, 0xb2, 0x8e],
+	    '滑': [0xb1, 0x2a],
+	    '滓': [0x47, 0x12, 0xea],
+	    '滔': [0xb1, 0x24, 0x5a],
+	    '滕': [0x23, 0x96, 0x4e],
+	    '滝': [0x47, 0xac],
+	    '滞': [0x47, 0x78],
+	    '滬': [0x47, 0xe4, 0xce],
+	    '滯': [0x47, 0x46, 0x78],
+	    '滲': [0x47, 0x02, 0x1a],
+	    '滴': [0x47, 0x1c],
+	    '滷': [0x47, 0xe0, 0x0c],
+	    '滸': [0x47, 0x16, 0xbc],
+	    '滾': [0x47, 0x24, 0xc8],
+	    '滿': [0x47, 0x46, 0xfe],
+	    '漁': [0xb7, 0xb8],
+	    '漂': [0x47, 0x4e],
+	    '漆': [0x47, 0x8e],
+	    '漉': [0x47, 0xb4, 0x38],
+	    '漏': [0xb1, 0x6e],
+	    '漑': [0xb1, 0x24, 0x98],
+	    '漓': [0x47, 0x10, 0x0e],
+	    '演': [0xb1, 0x1e],
+	    '漕': [0x47, 0x24, 0xbc],
+	    '漠': [0x47, 0x24, 0x9a],
+	    '漢': [0xb1, 0x9a],
+	    '漣': [0x47, 0xc6, 0xfa],
+	    '漫': [0xb1, 0xea],
+	    '漬': [0xb1, 0x1c],
+	    '漱': [0x47, 0x24, 0xe8],
+	    '漲': [0x47, 0xd0, 0x7c],
+	    '漸': [0x47, 0x68],
+	    '漾': [0xb1, 0xc0, 0xbc],
+	    '漿': [0x47, 0xd6, 0x0c],
+	    '潁': [0x47, 0xc4, 0x68],
+	    '潅': [0xb1, 0x24, 0x9e],
+	    '潔': [0xb1, 0x4c],
+	    '潘': [0x47, 0x54, 0x6a],
+	    '潛': [0xb1, 0xb0, 0x9e],
+	    '潜': [0xb1, 0x9e],
+	    '潟': [0xb1, 0xf8],
+	    '潤': [0xb1, 0xde],
+	    '潦': [0x47, 0xc0, 0x3c],
+	    '潭': [0x47, 0xc4, 0x3c],
+	    '潮': [0x47, 0xcc],
+	    '潯': [0x47, 0x36, 0xae],
+	    '潰': [0x47, 0x24, 0x68],
+	    '潴': [0x47, 0x96, 0x2e],
+	    '潸': [0x47, 0x22, 0xb8],
+	    '潺': [0x47, 0x24, 0x9c],
+	    '潼': [0x47, 0xe2, 0x2e],
+	    '澀': [0x47, 0x12, 0xe8],
+	    '澁': [0x47, 0x46, 0xe8],
+	    '澂': [0x47, 0x24, 0x58],
+	    '澄': [0x47, 0x7c],
+	    '澆': [0x47, 0x80, 0x7a],
+	    '澎': [0x47, 0x24, 0x1a],
+	    '澑': [0xb1, 0x22, 0x6a],
+	    '澗': [0x47, 0x24, 0x2a],
+	    '澡': [0x47, 0x36, 0x1a],
+	    '澣': [0x47, 0x34, 0x8a],
+	    '澤': [0x63, 0x62, 0x4e],
+	    '澪': [0x47, 0x66, 0xe8],
+	    '澱': [0x47, 0x94, 0x5c],
+	    '澳': [0x47, 0xe4, 0x5c],
+	    '澹': [0x47, 0x24, 0xcc],
+	    '激': [0x47, 0xb8],
+	    '濁': [0xb1, 0xfa],
+	    '濂': [0x47, 0x70, 0x9e],
+	    '濃': [0x47, 0x3c],
+	    '濆': [0x47, 0x24, 0xda],
+	    '濔': [0x47, 0xe4, 0xfe],
+	    '濕': [0x47, 0x46, 0x0e],
+	    '濘': [0x47, 0x24, 0x7e],
+	    '濛': [0xb1, 0x24, 0x9a],
+	    '濟': [0xb1, 0xb0, 0xaa],
+	    '濠': [0x47, 0xc0, 0xbc],
+	    '濡': [0xb1, 0x5c],
+	    '濤': [0xb1, 0xd6, 0xae],
+	    '濫': [0xb1, 0x8c],
+	    '濬': [0x47, 0xc0, 0xfe],
+	    '濮': [0x47, 0x42, 0x4a],
+	    '濯': [0x51, 0x4e],
+	    '濱': [0x47, 0x46, 0x2e],
+	    '濳': [0x03, 0xb0, 0x9e],
+	    '濶': [0xf5, 0x46, 0xbe],
+	    '濺': [0x47, 0x14, 0xec],
+	    '濾': [0x47, 0xb2, 0xac],
+	    '瀁': [0x47, 0xb4, 0x58],
+	    '瀉': [0x47, 0x24, 0x0a],
+	    '瀋': [0x47, 0x12, 0x5c],
+	    '瀏': [0x47, 0xc0, 0x8a],
+	    '瀑': [0x47, 0xc4, 0x9c],
+	    '瀕': [0x47, 0xe0, 0x1c],
+	    '瀘': [0x47, 0xc0, 0x6a],
+	    '瀚': [0x47, 0x34, 0xfa],
+	    '瀛': [0x47, 0x20, 0xdc],
+	    '瀝': [0x47, 0x94, 0xe8],
+	    '瀞': [0x47, 0xb6, 0x2c],
+	    '瀟': [0x47, 0x52, 0xd8],
+	    '瀦': [0xb1, 0x74, 0xcc],
+	    '瀧': [0x47, 0x46, 0xac],
+	    '瀬': [0xb1, 0xa8],
+	    '瀰': [0xb1, 0xe4, 0xfe],
+	    '瀲': [0x47, 0x26, 0xb8],
+	    '瀾': [0x47, 0xf4, 0xce],
+	    '灌': [0xb1, 0xc0, 0x9e],
+	    '灑': [0x47, 0xe4, 0x38],
+	    '灘': [0x47, 0x92, 0x0e],
+	    '灣': [0x47, 0x46, 0xd8],
+	    '火': [0xf9],
+	    '灯': [0xf1, 0x7e],
+	    '灰': [0x71, 0xf8],
+	    '灸': [0xf1, 0xba],
+	    '灼': [0xf1, 0x30, 0xfc],
+	    '災': [0x83, 0xf8],
+	    '炉': [0x75, 0xf8],
+	    '炊': [0xf1, 0xe8],
+	    '炎': [0xf1, 0xf8],
+	    '炒': [0xf1, 0xbc],
+	    '炙': [0xf1, 0xdc],
+	    '炬': [0xf1, 0x02, 0xba],
+	    '炭': [0x51, 0xf8],
+	    '炮': [0xf1, 0xf4, 0x0c],
+	    '炯': [0xf1, 0x24, 0xec],
+	    '炳': [0xf1, 0xa0, 0xde],
+	    '炸': [0xf1, 0x24, 0xaa],
+	    '点': [0x37, 0xf8],
+	    '為': [0xc1, 0xf8],
+	    '烈': [0xd5, 0xf8],
+	    '烋': [0xf1, 0x42, 0x8e],
+	    '烏': [0xb7, 0x1a],
+	    '烙': [0xf1, 0xb2, 0x3e],
+	    '烝': [0xf1, 0xb8],
+	    '烟': [0xf1, 0xe4, 0x9e],
+	    '烱': [0xf1, 0xe4, 0x3e],
+	    '烹': [0xf1, 0xc0, 0xea],
+	    '烽': [0xf1, 0x24, 0xdc],
+	    '焉': [0x81, 0xe8],
+	    '焔': [0xf1, 0x24, 0x5a],
+	    '焙': [0xf1, 0xea],
+	    '焚': [0xf1, 0x8e],
+	    '焜': [0xf1, 0xc4, 0x38],
+	    '無': [0xf3, 0xf8],
+	    '焦': [0x07, 0xf8],
+	    '然': [0x97, 0xf8],
+	    '焼': [0xf1, 0x7a],
+	    '煉': [0xf1, 0xce],
+	    '煌': [0xf1, 0xc4, 0xde],
+	    '煎': [0xf1, 0x2a],
+	    '煕': [0xf1, 0x04, 0x8e],
+	    '煖': [0xf1, 0x24, 0x98],
+	    '煙': [0xf1, 0x4e],
+	    '煢': [0xf1, 0xc0, 0x3c],
+	    '煤': [0xf1, 0x3a],
+	    '煥': [0xf1, 0x8c],
+	    '煦': [0xf1, 0xf4, 0x28],
+	    '照': [0xc5, 0xf8],
+	    '煩': [0xf1, 0x1c],
+	    '煬': [0xf1, 0x24, 0xa8],
+	    '煮': [0xf1, 0xcc],
+	    '煽': [0xf1, 0x74, 0xfa],
+	    '熄': [0xf1, 0xf6, 0xac],
+	    '熈': [0xf1, 0x24, 0x8e],
+	    '熊': [0x23, 0xf8],
+	    '熏': [0x93, 0x24, 0xf8],
+	    '熔': [0xf1, 0x12, 0x6a],
+	    '熕': [0xf1, 0x60, 0x9c],
+	    '熟': [0x15, 0xf8],
+	    '熨': [0xf1, 0x74, 0x5e],
+	    '熬': [0xf1, 0x40, 0xdc],
+	    '熱': [0xf1, 0x0a],
+	    '熹': [0xf1, 0x72, 0xec],
+	    '熾': [0xf1, 0x24, 0xcc],
+	    '燃': [0xf1, 0x9e],
+	    '燈': [0xf1, 0x7c],
+	    '燉': [0xf1, 0x24, 0xb8],
+	    '燎': [0xf1, 0x3c],
+	    '燐': [0xf1, 0x5c],
+	    '燒': [0xf1, 0xf0, 0x7a],
+	    '燔': [0xf1, 0x54, 0x6a],
+	    '燕': [0x73, 0x24, 0xbe],
+	    '燗': [0xf1, 0xf4, 0xcc],
+	    '營': [0xc1, 0xc0, 0xee],
+	    '燠': [0xf1, 0xe4, 0x5c],
+	    '燥': [0xf1, 0x1a],
+	    '燦': [0xf1, 0xaa],
+	    '燧': [0xf1, 0x04, 0xbc],
+	    '燬': [0xf1, 0x52, 0x5c],
+	    '燭': [0xf1, 0x24, 0xfa],
+	    '燮': [0xf1, 0x10, 0x6c],
+	    '燵': [0xf1, 0xc6, 0x6a],
+	    '燹': [0xf1, 0x24, 0xbc],
+	    '燻': [0xf1, 0x9a],
+	    '燼': [0xf1, 0xda],
+	    '燿': [0xf1, 0x24, 0x58],
+	    '爆': [0xf1, 0x9c],
+	    '爍': [0xf1, 0xc4, 0x4c],
+	    '爐': [0x75, 0x74, 0xf8],
+	    '爛': [0xf1, 0xf4, 0xce],
+	    '爨': [0xf1, 0xe4, 0x2e],
+	    '爪': [0x85, 0x7a],
+	    '爬': [0xc7, 0x84, 0x7a],
+	    '爭': [0xb5, 0xb4, 0x2c],
+	    '爰': [0x21, 0x98],
+	    '爲': [0xc1, 0xc0, 0xf8],
+	    '爵': [0xc1, 0x58],
+	    '父': [0xa1, 0x6e],
+	    '爺': [0x67, 0x58],
+	    '爻': [0xf7, 0xc0, 0x6e],
+	    '爼': [0xf7, 0x20, 0xbc],
+	    '爽': [0x43, 0x24, 0xfe],
+	    '爾': [0xe5, 0xfe],
+	    '爿': [0xd7, 0x04, 0x0c],
+	    '牀': [0x71, 0x70, 0x8e],
+	    '牆': [0xd7, 0xec],
+	    '片': [0xd7, 0x28],
+	    '版': [0xd7, 0xe8],
+	    '牋': [0xd7, 0x24, 0xec],
+	    '牌': [0xd7, 0x6a],
+	    '牒': [0xd7, 0x24, 0x78],
+	    '牘': [0xd7, 0x72, 0x68],
+	    '牙': [0x11, 0xfe],
+	    '牛': [0xb5, 0x0a],
+	    '牝': [0xb5, 0x24, 0xfe],
+	    '牟': [0x21, 0xfa],
+	    '牡': [0xb5, 0x24, 0x1c],
+	    '牢': [0x13, 0xb4, 0x0a],
+	    '牧': [0xb5, 0xb8],
+	    '物': [0xb5, 0xa8],
+	    '牲': [0xb5, 0x0e],
+	    '牴': [0xb5, 0x02, 0xe8],
+	    '特': [0xb5, 0xae],
+	    '牽': [0x35, 0xbc],
+	    '牾': [0xb5, 0x22, 0x3e],
+	    '犀': [0xb5, 0x24, 0x7c],
+	    '犁': [0xb5, 0x54, 0x5a],
+	    '犂': [0xb5, 0x54, 0x0a],
+	    '犇': [0xb5, 0xb4, 0xbc],
+	    '犒': [0xb5, 0x30, 0x1e],
+	    '犖': [0xb5, 0xf0, 0xf8],
+	    '犠': [0xb5, 0xbc],
+	    '犢': [0xb5, 0x72, 0x68],
+	    '犧': [0xb5, 0xc0, 0xbc],
+	    '犬': [0x9f],
+	    '犯': [0x97, 0xca],
+	    '犲': [0x97, 0x34, 0x18],
+	    '状': [0xd7, 0x9e],
+	    '犹': [0x97, 0x24, 0x98],
+	    '狂': [0x97, 0xde],
+	    '狃': [0x97, 0x80, 0xbc],
+	    '狄': [0x97, 0x24, 0xf8],
+	    '狆': [0x97, 0x30, 0x2c],
+	    '狎': [0x97, 0xa0, 0x9c],
+	    '狐': [0x97, 0x9c],
+	    '狒': [0x97, 0x24, 0xfe],
+	    '狗': [0x97, 0xfc],
+	    '狙': [0x97, 0x1a],
+	    '狛': [0x97, 0xc4, 0x0a],
+	    '狠': [0x97, 0x40, 0x58],
+	    '狡': [0x97, 0xc0, 0x6e],
+	    '狢': [0x97, 0xba],
+	    '狩': [0x97, 0xae],
+	    '独': [0x97, 0xfa],
+	    '狭': [0x97, 0x4a],
+	    '狷': [0x97, 0x24, 0x2a],
+	    '狸': [0x97, 0x30, 0x2e],
+	    '狹': [0x97, 0x96, 0x4a],
+	    '狼': [0x97, 0x58],
+	    '狽': [0x97, 0x24, 0x68],
+	    '猊': [0x97, 0x24, 0x2c],
+	    '猖': [0x97, 0x26, 0xcc],
+	    '猗': [0x97, 0x96, 0x8a],
+	    '猛': [0x97, 0x8c],
+	    '猜': [0x97, 0xa6, 0xbe],
+	    '猝': [0x97, 0x14, 0x3c],
+	    '猟': [0x97, 0x3c],
+	    '猥': [0x63, 0x9e],
+	    '猩': [0x97, 0xc4, 0x0e],
+	    '猪': [0x97, 0x2e],
+	    '猫': [0x97, 0x88],
+	    '献': [0xe7, 0x9e],
+	    '猯': [0x97, 0x24, 0x5c],
+	    '猴': [0x97, 0x90, 0x58],
+	    '猶': [0x97, 0xbe],
+	    '猷': [0xb7, 0x24, 0x9e],
+	    '猾': [0x97, 0x82, 0x2a],
+	    '猿': [0x97, 0x1e],
+	    '獄': [0x97, 0x6c],
+	    '獅': [0x97, 0x2a],
+	    '獎': [0x11, 0xd6, 0x38],
+	    '獏': [0x97, 0x24, 0x9a],
+	    '獗': [0x97, 0xe0, 0x0a],
+	    '獣': [0x97, 0xc8],
+	    '獨': [0x97, 0x96, 0xfa],
+	    '獪': [0x97, 0x26, 0x1e],
+	    '獰': [0x97, 0x24, 0x7e],
+	    '獲': [0x97, 0x9a],
+	    '獵': [0x97, 0x96, 0x3c],
+	    '獸': [0x97, 0x96, 0xc8],
+	    '獺': [0x97, 0x14, 0xa8],
+	    '獻': [0xe7, 0xe6, 0x9e],
+	    '玄': [0xc1, 0x4c],
+	    '率': [0xc1, 0x3c],
+	    '玉': [0xdf],
+	    '王': [0xd7, 0x0a],
+	    '玖': [0xd7, 0xb2, 0x18],
+	    '玩': [0xd7, 0x2c],
+	    '玲': [0xd7, 0x3c],
+	    '玳': [0xd7, 0x90, 0xec],
+	    '玻': [0xd7, 0x10, 0xce],
+	    '珀': [0xd7, 0xc4, 0x0a],
+	    '珂': [0xd7, 0x30, 0x8a],
+	    '珈': [0xd7, 0x52, 0x3e],
+	    '珊': [0xd7, 0x24, 0xde],
+	    '珍': [0xd7, 0x1a],
+	    '珎': [0xd7, 0x24, 0xc8],
+	    '珞': [0xd7, 0xb2, 0x3e],
+	    '珠': [0xd7, 0x8a],
+	    '珥': [0xd7, 0x24, 0xee],
+	    '珪': [0xd7, 0x24, 0x7a],
+	    '班': [0xd7, 0x5a],
+	    '珮': [0xd7, 0xf2, 0xae],
+	    '珱': [0xd7, 0x12, 0xda],
+	    '珸': [0xd7, 0x22, 0x3e],
+	    '現': [0xd7, 0xfe],
+	    '球': [0xd7, 0x4e],
+	    '琅': [0xd7, 0x30, 0x58],
+	    '理': [0xd7, 0x2e],
+	    '琉': [0xd7, 0x9a],
+	    '琢': [0xd7, 0xb4, 0x48],
+	    '琥': [0xd7, 0xb2, 0x48],
+	    '琲': [0xd7, 0x10, 0xf8],
+	    '琳': [0xd7, 0x86, 0x8e],
+	    '琴': [0xd7, 0xde],
+	    '琵': [0xd7, 0x24, 0x38],
+	    '琶': [0xd7, 0x24, 0xce],
+	    '琺': [0xd7, 0x46, 0x9c],
+	    '琿': [0xd7, 0x24, 0xfa],
+	    '瑁': [0xd7, 0xc4, 0xfe],
+	    '瑕': [0xd7, 0x24, 0x5c],
+	    '瑙': [0xd7, 0x24, 0x6e],
+	    '瑚': [0xd7, 0x24, 0x2a],
+	    '瑛': [0xd7, 0x92, 0x1c],
+	    '瑜': [0xd7, 0x20, 0xd8],
+	    '瑞': [0xd7, 0x5c],
+	    '瑟': [0xd7, 0xac],
+	    '瑠': [0xd7, 0x22, 0x6a],
+	    '瑣': [0xd7, 0x24, 0x68],
+	    '瑩': [0xf1, 0x12, 0xde],
+	    '瑪': [0xd7, 0x24, 0xbc],
+	    '瑯': [0xd7, 0x50, 0xaa],
+	    '瑰': [0xd7, 0x14, 0x4e],
+	    '瑳': [0xd7, 0xb4, 0x9c],
+	    '瑶': [0xd7, 0x24, 0x8a],
+	    '瑾': [0xd7, 0x24, 0x8e],
+	    '璃': [0xd7, 0x10, 0x0e],
+	    '璋': [0xd7, 0xe2, 0x3c],
+	    '璞': [0xd7, 0x24, 0x4a],
+	    '璢': [0xd7, 0x24, 0x6a],
+	    '璧': [0xe3, 0xde],
+	    '環': [0xd7, 0x3a],
+	    '璽': [0xf7, 0xde],
+	    '瓊': [0xd7, 0x14, 0xba],
+	    '瓏': [0xd7, 0xe2, 0xac],
+	    '瓔': [0xd7, 0xd2, 0x68],
+	    '瓜': [0xa5, 0x7a],
+	    '瓠': [0x97, 0xa4, 0x7a],
+	    '瓢': [0xa5, 0x46, 0x5e],
+	    '瓣': [0xf3, 0xa4, 0x7a],
+	    '瓦': [0x81, 0x8a],
+	    '瓧': [0x83, 0x12, 0x3c],
+	    '瓩': [0x83, 0x1c],
+	    '瓮': [0x83, 0x80, 0x9c],
+	    '瓰': [0x83, 0x12, 0xcc],
+	    '瓱': [0x83, 0x10, 0xbe],
+	    '瓲': [0x83, 0x30, 0xda],
+	    '瓶': [0x75, 0x8a],
+	    '瓷': [0x83, 0xb0, 0xe8],
+	    '瓸': [0x83, 0xa0, 0xfe],
+	    '甃': [0x55, 0x80, 0x8a],
+	    '甄': [0x83, 0x30, 0x4e],
+	    '甅': [0x83, 0x70, 0x2e],
+	    '甌': [0xf5, 0x80, 0x8a],
+	    '甍': [0x13, 0x80, 0x8a],
+	    '甎': [0x83, 0x10, 0x7e],
+	    '甑': [0xb5, 0x80, 0x8a],
+	    '甓': [0xe3, 0x80, 0x8a],
+	    '甕': [0xc7, 0x80, 0x8a],
+	    '甘': [0x11, 0x3a],
+	    '甚': [0x03, 0x8e],
+	    '甜': [0xb7, 0x3a],
+	    '甞': [0xc1, 0x10, 0x3a],
+	    '生': [0xb7, 0x0e],
+	    '産': [0x71, 0x0e],
+	    '甥': [0xb7, 0x62, 0x5a],
+	    '甦': [0x43, 0xb6, 0x0e],
+	    '用': [0xe5, 0x48],
+	    '甫': [0x81, 0xdc],
+	    '甬': [0x11, 0x10, 0x7a],
+	    '田': [0x6b],
+	    '由': [0x63, 0x18],
+	    '甲': [0xa1, 0x9c],
+	    '申': [0x21, 0xae],
+	    '男': [0x63, 0x5a],
+	    '甸': [0xf5, 0x24, 0x6a],
+	    '町': [0x63, 0x7e],
+	    '画': [0xd3, 0x6a],
+	    '甼': [0x63, 0xa0, 0x7e],
+	    '畄': [0x23, 0x22, 0x6a],
+	    '畆': [0x63, 0x24, 0xba],
+	    '畉': [0x63, 0x40, 0x9e],
+	    '畊': [0x63, 0x20, 0x0e],
+	    '畋': [0x63, 0x24, 0xb8],
+	    '界': [0x63, 0x2c],
+	    '畍': [0x63, 0x90, 0x2c],
+	    '畏': [0x63, 0x5e],
+	    '畑': [0xf1, 0x6a],
+	    '畔': [0x53, 0xca],
+	    '留': [0x23, 0x6a],
+	    '畚': [0x97, 0x24, 0x6a],
+	    '畛': [0x63, 0x24, 0x1a],
+	    '畜': [0xc1, 0x6a],
+	    '畝': [0x63, 0xba],
+	    '畠': [0xc5, 0x6a],
+	    '畢': [0x63, 0x8a],
+	    '畤': [0x63, 0x72, 0xae],
+	    '略': [0x63, 0x3e],
+	    '畦': [0x73, 0x6a],
+	    '畧': [0x63, 0x62, 0x3e],
+	    '畩': [0x63, 0x56, 0x0a],
+	    '番': [0x55, 0x6a],
+	    '畫': [0xd3, 0xd2, 0x6a],
+	    '畭': [0x63, 0x26, 0xfc],
+	    '異': [0x63, 0x9c],
+	    '畳': [0x63, 0xbc],
+	    '畴': [0x63, 0x24, 0xde],
+	    '當': [0xc1, 0xc0, 0xda],
+	    '畷': [0x63, 0x6c],
+	    '畸': [0x63, 0x96, 0x8a],
+	    '畿': [0xe5, 0x4c],
+	    '疂': [0x63, 0x24, 0xbc],
+	    '疆': [0xd1, 0xc0, 0x6a],
+	    '疇': [0x63, 0xd6, 0xae],
+	    '疉': [0x63, 0x30, 0x8c],
+	    '疊': [0x63, 0x62, 0xbc],
+	    '疋': [0x81, 0x78],
+	    '疎': [0x71, 0xa8],
+	    '疏': [0x71, 0x9a],
+	    '疑': [0x51, 0x78],
+	    '疔': [0x51, 0xa0, 0x7e],
+	    '疚': [0x51, 0xb2, 0x18],
+	    '疝': [0x51, 0x50, 0x0a],
+	    '疣': [0x51, 0x24, 0x98],
+	    '疥': [0x51, 0x90, 0x2c],
+	    '疫': [0x51, 0x5c],
+	    '疱': [0x51, 0xf4, 0x0c],
+	    '疲': [0x51, 0xce],
+	    '疳': [0x51, 0x10, 0x3a],
+	    '疵': [0x51, 0x30, 0x18],
+	    '疸': [0x51, 0x10, 0xcc],
+	    '疹': [0x51, 0x24, 0x1a],
+	    '疼': [0x51, 0xb2, 0x0a],
+	    '疽': [0x51, 0x24, 0xbc],
+	    '疾': [0x51, 0x28],
+	    '痂': [0x51, 0x52, 0x3e],
+	    '痃': [0x51, 0xc0, 0x4c],
+	    '病': [0x59],
+	    '症': [0x51, 0x0e],
+	    '痊': [0x51, 0x26, 0xde],
+	    '痍': [0x51, 0xd0, 0x4a],
+	    '痒': [0x51, 0xbc],
+	    '痔': [0x51, 0xae],
+	    '痕': [0x51, 0x24, 0x58],
+	    '痘': [0x51, 0x7c],
+	    '痙': [0x51, 0x24, 0x9e],
+	    '痛': [0x51, 0x7a],
+	    '痞': [0x51, 0xd2, 0xec],
+	    '痢': [0x51, 0x5a],
+	    '痣': [0x51, 0x72, 0xac],
+	    '痩': [0x51, 0x1e],
+	    '痰': [0x51, 0xf0, 0xf8],
+	    '痲': [0x51, 0xa4, 0xea],
+	    '痳': [0x51, 0x86, 0x8e],
+	    '痴': [0x51, 0x58],
+	    '痺': [0x51, 0x62, 0xaa],
+	    '痼': [0x51, 0xe4, 0x3c],
+	    '痾': [0x51, 0xa2, 0x8a],
+	    '痿': [0x51, 0x24, 0xda],
+	    '瘁': [0x51, 0x14, 0x3c],
+	    '瘉': [0x51, 0x50, 0xd8],
+	    '瘋': [0x51, 0xf2, 0x2c],
+	    '瘍': [0x51, 0xa8],
+	    '瘟': [0x51, 0x24, 0x8c],
+	    '瘠': [0x51, 0x84, 0x98],
+	    '瘡': [0x51, 0x26, 0x1c],
+	    '瘢': [0x51, 0xd2, 0x5c],
+	    '瘤': [0x51, 0x22, 0x6a],
+	    '瘧': [0x51, 0xb2, 0x8a],
+	    '瘰': [0x51, 0x62, 0x4c],
+	    '瘴': [0x51, 0xe2, 0x3c],
+	    '瘻': [0x51, 0x24, 0x3a],
+	    '療': [0x51, 0x3c],
+	    '癆': [0x51, 0xc0, 0x5a],
+	    '癇': [0x51, 0xf4, 0x2a],
+	    '癈': [0x51, 0x24, 0xba],
+	    '癌': [0x51, 0xec],
+	    '癒': [0x51, 0xd8],
+	    '癖': [0x51, 0xea],
+	    '癘': [0x51, 0xa0, 0xea],
+	    '癜': [0x51, 0x94, 0x5c],
+	    '癡': [0x51, 0x24, 0x78],
+	    '癢': [0x51, 0xb4, 0x58],
+	    '癧': [0x51, 0x94, 0xe8],
+	    '癨': [0x51, 0x66, 0x0a],
+	    '癩': [0x51, 0x14, 0xa8],
+	    '癪': [0x51, 0x54, 0x68],
+	    '癬': [0x51, 0xb6, 0xbc],
+	    '癰': [0x51, 0xe4, 0xce],
+	    '癲': [0x51, 0x02, 0xfe],
+	    '癶': [0xb3, 0x24, 0x0a],
+	    '癸': [0xa1, 0xba],
+	    '発': [0xbb],
+	    '登': [0xb3, 0x7c],
+	    '發': [0xb3, 0xba],
+	    '白': [0xc5, 0x0a],
+	    '百': [0xa1, 0xfe],
+	    '皀': [0xc7, 0xc4, 0x0a],
+	    '皃': [0x25, 0xc4, 0x0a],
+	    '的': [0xc5, 0xfc],
+	    '皆': [0x31, 0xcc],
+	    '皇': [0xc5, 0xde],
+	    '皈': [0xc5, 0xc2, 0xe8],
+	    '皋': [0xc5, 0x86, 0x88],
+	    '皎': [0xc5, 0xc0, 0x6e],
+	    '皐': [0xc5, 0x24, 0x3c],
+	    '皓': [0xc5, 0x24, 0x9c],
+	    '皖': [0xc5, 0x12, 0x2c],
+	    '皙': [0xc5, 0x86, 0x1c],
+	    '皚': [0x51, 0xc4, 0x0a],
+	    '皮': [0x11, 0xce],
+	    '皰': [0xc7, 0xf4, 0x0c],
+	    '皴': [0xf3, 0x10, 0xce],
+	    '皷': [0x75, 0x74, 0xca],
+	    '皸': [0x25, 0x10, 0xce],
+	    '皹': [0xc7, 0x24, 0xfa],
+	    '皺': [0xf5, 0x10, 0xce],
+	    '皿': [0x11, 0x8c],
+	    '盂': [0x83, 0x24, 0x8c],
+	    '盃': [0xd3, 0x10, 0x8c],
+	    '盆': [0x53, 0x8c],
+	    '盈': [0x45, 0x24, 0x8c],
+	    '益': [0x27, 0x8c],
+	    '盍': [0x73, 0x24, 0x8c],
+	    '盒': [0x85, 0x26, 0xec],
+	    '盖': [0xb5, 0x24, 0x2a],
+	    '盗': [0xe1, 0x8c],
+	    '盛': [0xb7, 0x8c],
+	    '盜': [0xe1, 0xe0, 0x8c],
+	    '盞': [0xe5, 0x24, 0x8c],
+	    '盟': [0xc5, 0x8c],
+	    '盡': [0xd3, 0xd2, 0xf8],
+	    '監': [0xb3, 0x8c],
+	    '盤': [0x55, 0x8c],
+	    '盥': [0x47, 0x24, 0x8c],
+	    '盧': [0xb3, 0x24, 0x6a],
+	    '盪': [0x85, 0x46, 0xa8],
+	    '目': [0xff],
+	    '盲': [0xf7, 0xdc],
+	    '直': [0x35, 0xfe],
+	    '相': [0x87, 0xfe],
+	    '盻': [0xf7, 0x24, 0xfc],
+	    '盾': [0x71, 0xfe],
+	    '省': [0xb5, 0xfe],
+	    '眄': [0xf7, 0x24, 0x1a],
+	    '眇': [0xf7, 0xd4, 0xbc],
+	    '眈': [0xf7, 0x24, 0xc8],
+	    '眉': [0xf7, 0xbe],
+	    '看': [0xf7, 0x8a],
+	    '県': [0xf7, 0x4c],
+	    '眛': [0xf7, 0x86, 0x18],
+	    '眞': [0x03, 0x02, 0xfe],
+	    '真': [0x03, 0xfe],
+	    '眠': [0xf7, 0xe8],
+	    '眤': [0xf7, 0x74, 0x98],
+	    '眥': [0xf7, 0x24, 0x38],
+	    '眦': [0xf7, 0x30, 0x18],
+	    '眩': [0xf7, 0xc0, 0x4c],
+	    '眷': [0xf7, 0x24, 0x9e],
+	    '眸': [0xf7, 0x20, 0xfa],
+	    '眺': [0xf7, 0x1a],
+	    '眼': [0xf7, 0x58],
+	    '着': [0xf7, 0xbc],
+	    '睇': [0xf7, 0xd0, 0x2c],
+	    '睚': [0xf7, 0x24, 0x7a],
+	    '睛': [0xf7, 0xa6, 0xbe],
+	    '睡': [0xf7, 0x4e],
+	    '督': [0x13, 0xfe],
+	    '睥': [0xf7, 0x62, 0xaa],
+	    '睦': [0xf7, 0xfa],
+	    '睨': [0xf7, 0x9c],
+	    '睫': [0xf7, 0x24, 0xea],
+	    '睹': [0xf7, 0x74, 0xcc],
+	    '睾': [0xb3, 0x72, 0x8a],
+	    '睿': [0xf7, 0x40, 0x48],
+	    '瞋': [0xf7, 0x02, 0xfe],
+	    '瞎': [0xf7, 0x24, 0xde],
+	    '瞑': [0xf7, 0xc0, 0xcc],
+	    '瞞': [0xf7, 0x24, 0xfe],
+	    '瞠': [0xf7, 0xc0, 0x7a],
+	    '瞥': [0xf7, 0xb8],
+	    '瞬': [0xf7, 0xc8],
+	    '瞭': [0xf7, 0x3c],
+	    '瞰': [0xf7, 0xe6, 0xb8],
+	    '瞳': [0xf7, 0xea],
+	    '瞶': [0xf7, 0x60, 0x8e],
+	    '瞹': [0xf7, 0xc0, 0x0a],
+	    '瞻': [0xf7, 0x24, 0xcc],
+	    '瞼': [0xf7, 0xcc],
+	    '瞽': [0xf7, 0xca],
+	    '瞿': [0xf7, 0x24, 0x9a],
+	    '矇': [0xf7, 0x24, 0xbc],
+	    '矍': [0xf7, 0x06, 0x6c],
+	    '矗': [0xf7, 0x34, 0xfe],
+	    '矚': [0xf7, 0x74, 0xee],
+	    '矛': [0x03, 0x78],
+	    '矜': [0x71, 0x26, 0x0a],
+	    '矢': [0x51, 0x0c],
+	    '矣': [0x81, 0xfa],
+	    '知': [0x51, 0x3e],
+	    '矧': [0x51, 0xd0, 0x18],
+	    '矩': [0x51, 0xba],
+	    '短': [0x75, 0x58],
+	    '矮': [0x51, 0x54, 0xda],
+	    '矯': [0x51, 0x24, 0x5c],
+	    '石': [0xeb],
+	    '矼': [0xe3, 0x94, 0x0a],
+	    '砂': [0xe3, 0xbc],
+	    '砌': [0xe3, 0x36, 0x5a],
+	    '砒': [0xe3, 0x24, 0x38],
+	    '研': [0xe3, 0x5e],
+	    '砕': [0xe3, 0x1c],
+	    '砠': [0xe3, 0x20, 0xbc],
+	    '砥': [0xe3, 0x02, 0xe8],
+	    '砦': [0xe3, 0x38],
+	    '砧': [0xe3, 0x36, 0x7c],
+	    '砲': [0xe3, 0xfc],
+	    '破': [0xe3, 0xce],
+	    '砺': [0xe3, 0xa0, 0xea],
+	    '砿': [0xe3, 0x9c],
+	    '硅': [0xe3, 0x24, 0x7a],
+	    '硝': [0xe3, 0x8c],
+	    '硫': [0xe3, 0x9a],
+	    '硬': [0xe3, 0x4a],
+	    '硯': [0xe3, 0xf6, 0x2c],
+	    '硲': [0xe3, 0x62, 0x0a],
+	    '硴': [0xe3, 0x92, 0x38],
+	    '硼': [0xe3, 0x22, 0x2a],
+	    '碁': [0x87, 0x24, 0xea],
+	    '碆': [0xe3, 0x46, 0xce],
+	    '碇': [0xe3, 0x12, 0x78],
+	    '碌': [0xe3, 0x24, 0xee],
+	    '碍': [0xe3, 0x78],
+	    '碎': [0xe3, 0xe2, 0x1c],
+	    '碑': [0xe3, 0x6a],
+	    '碓': [0xe3, 0x24, 0x0e],
+	    '碕': [0xe3, 0x24, 0x9e],
+	    '碗': [0xe3, 0x24, 0x1a],
+	    '碚': [0xe3, 0x24, 0xea],
+	    '碣': [0xe3, 0x24, 0xb8],
+	    '碧': [0xd7, 0xea],
+	    '碩': [0x15, 0xea],
+	    '碪': [0xe3, 0x02, 0x8e],
+	    '碯': [0xe3, 0x24, 0x6e],
+	    '碵': [0xe3, 0x60, 0x7c],
+	    '確': [0xe3, 0x0e],
+	    '碼': [0xe3, 0xc0, 0xbc],
+	    '碾': [0xe3, 0x74, 0x7c],
+	    '磁': [0xe3, 0x4c],
+	    '磅': [0xe3, 0x24, 0xdc],
+	    '磆': [0xe3, 0x82, 0x2a],
+	    '磊': [0xe3, 0xe2, 0xea],
+	    '磋': [0xe3, 0xb4, 0x9c],
+	    '磐': [0xe3, 0x24, 0x5c],
+	    '磑': [0xe3, 0x20, 0x58],
+	    '磔': [0xe3, 0x24, 0x8e],
+	    '磚': [0xe3, 0x10, 0x7e],
+	    '磧': [0xe3, 0xd6, 0x68],
+	    '磨': [0x71, 0xea],
+	    '磬': [0xe3, 0xe6, 0x5c],
+	    '磯': [0xe3, 0xec],
+	    '磴': [0xe3, 0xb2, 0x7c],
+	    '磽': [0xe3, 0xc0, 0x7a],
+	    '礁': [0xe3, 0xf8],
+	    '礇': [0xe3, 0xe4, 0x5c],
+	    '礎': [0xe3, 0x8e],
+	    '礑': [0xe3, 0xc0, 0xda],
+	    '礒': [0xe3, 0xb4, 0xec],
+	    '礙': [0xe3, 0x50, 0x78],
+	    '礦': [0xe3, 0x70, 0x9c],
+	    '礪': [0xe3, 0xc0, 0xea],
+	    '礫': [0xe3, 0xc4, 0x4c],
+	    '礬': [0xe3, 0x86, 0x8e],
+	    '示': [0x5f],
+	    '礼': [0x57, 0x7c],
+	    '社': [0x57, 0x7a],
+	    '祀': [0x57, 0x24, 0x8e],
+	    '祁': [0x57, 0xc0, 0xaa],
+	    '祇': [0x57, 0x02, 0xe8],
+	    '祈': [0x57, 0x68],
+	    '祉': [0x57, 0xe8],
+	    '祐': [0x57, 0xa8],
+	    '祓': [0x57, 0x6c],
+	    '祕': [0x55, 0x54, 0x28],
+	    '祖': [0x57, 0xbc],
+	    '祗': [0x57, 0x24, 0xe8],
+	    '祚': [0x57, 0x24, 0xaa],
+	    '祝': [0x57, 0x2c],
+	    '神': [0x57, 0xae],
+	    '祟': [0x57, 0x30, 0xde],
+	    '祠': [0x57, 0x98],
+	    '祢': [0x57, 0xc8],
+	    '祥': [0x57, 0x78],
+	    '票': [0x47, 0x5e],
+	    '祭': [0x57, 0xaa],
+	    '祷': [0x57, 0xde],
+	    '祺': [0x57, 0x10, 0x8e],
+	    '祿': [0x57, 0x56, 0xee],
+	    '禀': [0x57, 0xe4, 0x3e],
+	    '禁': [0x87, 0x5e],
+	    '禄': [0x57, 0xee],
+	    '禅': [0x57, 0x3e],
+	    '禊': [0x57, 0x52, 0x9e],
+	    '禍': [0x57, 0x8a],
+	    '禎': [0x57, 0x60, 0x7c],
+	    '福': [0x57, 0xda],
+	    '禝': [0x57, 0xc0, 0x6a],
+	    '禦': [0x57, 0xd0, 0xaa],
+	    '禧': [0x57, 0x72, 0xec],
+	    '禪': [0x57, 0x56, 0x3e],
+	    '禮': [0x57, 0x56, 0x7c],
+	    '禰': [0x57, 0xe4, 0xfe],
+	    '禳': [0x57, 0x24, 0xee],
+	    '禹': [0x21, 0xee],
+	    '禺': [0x21, 0x9a],
+	    '禽': [0x27, 0x24, 0x8e],
+	    '禾': [0x55, 0x48],
+	    '禿': [0x55, 0x24, 0xc8],
+	    '秀': [0x55, 0x4c],
+	    '私': [0x5d],
+	    '秉': [0x77, 0x54, 0x18],
+	    '秋': [0x55, 0xf8],
+	    '科': [0x55, 0x7c],
+	    '秒': [0xc5, 0xbc],
+	    '秕': [0x55, 0x24, 0x38],
+	    '秘': [0x55, 0x28],
+	    '租': [0x55, 0xbc],
+	    '秡': [0x55, 0x34, 0x6c],
+	    '秣': [0x55, 0x86, 0x28],
+	    '秤': [0x55, 0x26, 0x8a],
+	    '秦': [0x97, 0x5c],
+	    '秧': [0x55, 0x96, 0x1c],
+	    '秩': [0x55, 0x9e],
+	    '秬': [0x55, 0x02, 0xba],
+	    '称': [0x55, 0xc8],
+	    '移': [0x55, 0xdc],
+	    '稀': [0x55, 0xf6, 0xae],
+	    '稈': [0x55, 0x10, 0x8a],
+	    '程': [0x55, 0xde],
+	    '稍': [0x55, 0xb4, 0x8c],
+	    '税': [0x55, 0x2c],
+	    '稔': [0x55, 0x26, 0xac],
+	    '稗': [0xa5, 0x62, 0xaa],
+	    '稘': [0x55, 0x10, 0x8e],
+	    '稙': [0x55, 0x34, 0xfe],
+	    '稚': [0x55, 0x0e],
+	    '稜': [0x55, 0xba],
+	    '稟': [0x55, 0xe4, 0x3e],
+	    '稠': [0x55, 0xe4, 0x7a],
+	    '種': [0x55, 0x2e],
+	    '稱': [0x55, 0x54, 0xc8],
+	    '稲': [0x55, 0x18],
+	    '稷': [0xa5, 0x24, 0xba],
+	    '稻': [0x55, 0x54, 0x18],
+	    '稼': [0x25, 0x5c],
+	    '稽': [0x55, 0x98],
+	    '稾': [0x55, 0x30, 0x1e],
+	    '稿': [0x55, 0x1e],
+	    '穀': [0x73, 0x5c],
+	    '穂': [0x55, 0xfa],
+	    '穃': [0x55, 0x12, 0x6a],
+	    '穆': [0x55, 0xd4, 0xbc],
+	    '穉': [0x55, 0x24, 0x7c],
+	    '積': [0x55, 0x68],
+	    '穎': [0x55, 0x24, 0x1c],
+	    '穏': [0x55, 0x3a],
+	    '穐': [0x55, 0x30, 0xfe],
+	    '穗': [0x55, 0x54, 0xfa],
+	    '穡': [0x55, 0x24, 0xec],
+	    '穢': [0x55, 0xe8],
+	    '穣': [0x55, 0xee],
+	    '穩': [0x55, 0x54, 0x3a],
+	    '穫': [0x55, 0x9a],
+	    '穰': [0x55, 0x54, 0xee],
+	    '穴': [0x13, 0x2e],
+	    '究': [0x13, 0x1c],
+	    '穹': [0x13, 0xd0, 0x0a],
+	    '空': [0x13, 0x8e],
+	    '穽': [0x07, 0x12, 0x2e],
+	    '穿': [0x27, 0xfe],
+	    '突': [0x13, 0x9e],
+	    '窃': [0x13, 0x3e],
+	    '窄': [0x13, 0x24, 0xaa],
+	    '窈': [0x13, 0x44, 0x0a],
+	    '窒': [0x25, 0xd8],
+	    '窓': [0x25, 0x9c],
+	    '窕': [0x13, 0xa0, 0x2c],
+	    '窖': [0x95, 0x12, 0x2e],
+	    '窗': [0x25, 0x24, 0x9c],
+	    '窘': [0x13, 0x14, 0x0a],
+	    '窟': [0x13, 0x74, 0xde],
+	    '窩': [0x83, 0x12, 0x2e],
+	    '窪': [0x13, 0x4e],
+	    '窮': [0x25, 0xee],
+	    '窯': [0x13, 0xf8],
+	    '窰': [0x13, 0x24, 0xf8],
+	    '窶': [0x13, 0x24, 0xa8],
+	    '窺': [0xf7, 0x2e],
+	    '窿': [0x13, 0xa2, 0xbe],
+	    '竃': [0xf1, 0x12, 0x2e],
+	    '竄': [0x13, 0x96, 0x28],
+	    '竅': [0xb1, 0x12, 0x2e],
+	    '竇': [0x73, 0x12, 0x2e],
+	    '竈': [0xf1, 0x24, 0x2e],
+	    '竊': [0x13, 0x12, 0x3e],
+	    '立': [0xe3, 0x0a],
+	    '竍': [0xe3, 0x24, 0x3c],
+	    '竏': [0xe3, 0xa0, 0xbe],
+	    '竒': [0x03, 0x96, 0x8a],
+	    '竓': [0xe3, 0x24, 0xbe],
+	    '竕': [0xe3, 0x24, 0x2e],
+	    '站': [0xe3, 0x24, 0x7c],
+	    '竚': [0xe3, 0xa0, 0x7e],
+	    '竜': [0xe3, 0xac],
+	    '竝': [0xe3, 0xe2, 0x0a],
+	    '竟': [0x81, 0x4a],
+	    '章': [0xe3, 0x3c],
+	    '竡': [0xe3, 0xa0, 0xfe],
+	    '竢': [0xe3, 0x80, 0xfa],
+	    '竣': [0xe3, 0x24, 0xfa],
+	    '童': [0xe3, 0x2e],
+	    '竦': [0xe3, 0x86, 0xa8],
+	    '竪': [0xb3, 0xe2, 0x0a],
+	    '竭': [0xe3, 0xc0, 0xb8],
+	    '端': [0xe3, 0x5c],
+	    '竰': [0xe3, 0x70, 0x2e],
+	    '競': [0xe3, 0x2c],
+	    '竸': [0xe3, 0xe2, 0x2c],
+	    '竹': [0x6f],
+	    '竺': [0x67, 0x24, 0x0e],
+	    '竿': [0x67, 0x8a],
+	    '笂': [0x67, 0x02, 0x1c],
+	    '笄': [0x67, 0x24, 0x7c],
+	    '笆': [0x67, 0x20, 0xce],
+	    '笈': [0x67, 0x10, 0x4c],
+	    '笊': [0x67, 0x84, 0x7a],
+	    '笋': [0x67, 0x80, 0x0e],
+	    '笏': [0x67, 0x10, 0xa8],
+	    '笑': [0x67, 0x9e],
+	    '笘': [0x67, 0x36, 0x7c],
+	    '笙': [0x67, 0xb6, 0x0e],
+	    '笛': [0x63, 0x6e],
+	    '笞': [0x67, 0x10, 0x4a],
+	    '笠': [0x67, 0xea],
+	    '笥': [0x67, 0x10, 0x98],
+	    '符': [0x67, 0x4a],
+	    '笨': [0x67, 0x86, 0x88],
+	    '第': [0x67, 0xd8],
+	    '笳': [0x67, 0x52, 0x3e],
+	    '笵': [0x67, 0x24, 0xaa],
+	    '笶': [0x67, 0x50, 0x0c],
+	    '笹': [0xa5, 0x34, 0x78],
+	    '筅': [0x67, 0x72, 0xc8],
+	    '筆': [0x67, 0xda],
+	    '筈': [0x37, 0x6e],
+	    '等': [0x67, 0xae],
+	    '筋': [0x67, 0x8c],
+	    '筌': [0x67, 0x26, 0xde],
+	    '筍': [0x67, 0x9c],
+	    '筏': [0x67, 0x24, 0xec],
+	    '筐': [0x67, 0xd6, 0x0a],
+	    '筑': [0x67, 0x9a],
+	    '筒': [0x67, 0x7c],
+	    '答': [0x67, 0xec],
+	    '策': [0x67, 0xa8],
+	    '筝': [0x67, 0xc0, 0xbc],
+	    '筥': [0x67, 0x80, 0xee],
+	    '筧': [0x67, 0xf6, 0x2c],
+	    '筬': [0x67, 0xb6, 0xce],
+	    '筮': [0x67, 0x90, 0xda],
+	    '筰': [0x67, 0x90, 0xaa],
+	    '筱': [0x67, 0x90, 0xd8],
+	    '筴': [0x67, 0x20, 0x4a],
+	    '筵': [0x67, 0xc2, 0x0a],
+	    '筺': [0x67, 0xc0, 0xde],
+	    '箆': [0x67, 0x24, 0x38],
+	    '箇': [0x67, 0x3e],
+	    '箋': [0x67, 0x10, 0xec],
+	    '箍': [0x67, 0x24, 0x7e],
+	    '箏': [0x67, 0xb4, 0x2c],
+	    '箒': [0x67, 0x24, 0x2e],
+	    '箔': [0x67, 0xb0, 0xcc],
+	    '箕': [0x67, 0x10, 0x8e],
+	    '算': [0xf7, 0x7c],
+	    '箘': [0x67, 0xc0, 0xec],
+	    '箙': [0x67, 0x22, 0x4c],
+	    '箚': [0x67, 0x26, 0xec],
+	    '箜': [0x67, 0x12, 0x8e],
+	    '箝': [0x67, 0x10, 0x3a],
+	    '箟': [0x67, 0xc4, 0x38],
+	    '管': [0x67, 0x2a],
+	    '箪': [0x67, 0x36, 0x3e],
+	    '箭': [0x67, 0x22, 0x5a],
+	    '箱': [0x67, 0xfe],
+	    '箴': [0x67, 0xc6, 0x48],
+	    '箸': [0x75, 0x6e],
+	    '節': [0x67, 0xaa],
+	    '篁': [0x67, 0xc4, 0xde],
+	    '範': [0x67, 0xfa],
+	    '篆': [0x67, 0x24, 0xbc],
+	    '篇': [0x67, 0x24, 0xde],
+	    '築': [0x67, 0xc8],
+	    '篋': [0x67, 0x24, 0x4a],
+	    '篌': [0x67, 0x90, 0x58],
+	    '篏': [0x67, 0xe0, 0x0a],
+	    '篝': [0x67, 0x24, 0xfa],
+	    '篠': [0xa5, 0xb2, 0x8e],
+	    '篤': [0x67, 0xbc],
+	    '篥': [0x67, 0xa4, 0x4e],
+	    '篦': [0x67, 0xc0, 0x38],
+	    '篩': [0x67, 0xa6, 0x2a],
+	    '篭': [0xe3, 0x6e],
+	    '篳': [0x67, 0x24, 0x6a],
+	    '篶': [0x67, 0x24, 0xe8],
+	    '篷': [0x67, 0xc6, 0xdc],
+	    '簀': [0x67, 0xd6, 0x68],
+	    '簇': [0x67, 0xd4, 0x58],
+	    '簍': [0x67, 0x24, 0x3a],
+	    '簑': [0x67, 0x24, 0x5e],
+	    '簒': [0x67, 0x04, 0xfa],
+	    '簓': [0x67, 0xe4, 0x1a],
+	    '簔': [0x67, 0xc0, 0x5e],
+	    '簗': [0x67, 0x24, 0x8e],
+	    '簟': [0x67, 0xc4, 0x3c],
+	    '簡': [0x67, 0xcc],
+	    '簣': [0x67, 0x60, 0x8e],
+	    '簧': [0x67, 0xa6, 0x9c],
+	    '簪': [0x67, 0x24, 0xcc],
+	    '簫': [0x67, 0x52, 0xd8],
+	    '簷': [0x67, 0xc0, 0xcc],
+	    '簸': [0x67, 0x10, 0xce],
+	    '簽': [0x67, 0x80, 0x2e],
+	    '簾': [0x67, 0x70, 0x9e],
+	    '簿': [0x67, 0x7e],
+	    '籀': [0x67, 0xc0, 0x2a],
+	    '籃': [0x67, 0xb2, 0x8c],
+	    '籌': [0x67, 0xd6, 0xae],
+	    '籍': [0x67, 0x5e],
+	    '籏': [0x67, 0xd4, 0x8e],
+	    '籐': [0xa5, 0xa4, 0xda],
+	    '籔': [0x67, 0x24, 0xa8],
+	    '籖': [0x67, 0xc0, 0xee],
+	    '籘': [0x67, 0x24, 0xda],
+	    '籟': [0x67, 0x14, 0xa8],
+	    '籠': [0x67, 0xe2, 0xac],
+	    '籤': [0x67, 0x24, 0xee],
+	    '籥': [0x67, 0x62, 0x6e],
+	    '籬': [0x67, 0x12, 0x0e],
+	    '米': [0x55, 0x0a],
+	    '籵': [0x55, 0x24, 0x3c],
+	    '籾': [0x55, 0x02, 0x5a],
+	    '粁': [0x55, 0x1c],
+	    '粂': [0xb3, 0x54, 0x0a],
+	    '粃': [0x55, 0x12, 0x38],
+	    '粉': [0x27, 0x5c],
+	    '粋': [0x55, 0x3c],
+	    '粍': [0x55, 0x4e],
+	    '粐': [0x55, 0xc0, 0x7c],
+	    '粒': [0x55, 0xea],
+	    '粕': [0x55, 0xc4, 0x0a],
+	    '粗': [0xb5, 0x5c],
+	    '粘': [0x55, 0xec],
+	    '粛': [0x53, 0xd8],
+	    '粟': [0xa5, 0x48],
+	    '粡': [0x55, 0xe4, 0x7c],
+	    '粢': [0x55, 0xb0, 0xe8],
+	    '粤': [0xf5, 0xe4, 0x5c],
+	    '粥': [0xd1, 0x24, 0x5c],
+	    '粧': [0x55, 0x7a],
+	    '粨': [0x55, 0xa0, 0xfe],
+	    '粫': [0x55, 0x80, 0x5c],
+	    '粭': [0x55, 0x26, 0xec],
+	    '粮': [0x55, 0x30, 0x58],
+	    '粱': [0x55, 0x24, 0x4e],
+	    '粲': [0x55, 0x24, 0xaa],
+	    '粳': [0x55, 0xc4, 0x4a],
+	    '粹': [0x55, 0x54, 0x3c],
+	    '粽': [0x55, 0x12, 0x5e],
+	    '精': [0x55, 0xbe],
+	    '糀': [0x55, 0x92, 0x38],
+	    '糂': [0x55, 0x02, 0x8e],
+	    '糅': [0x55, 0x86, 0x78],
+	    '糊': [0x55, 0x24, 0x2a],
+	    '糎': [0x55, 0x1a],
+	    '糒': [0x55, 0x24, 0xce],
+	    '糖': [0x55, 0xfc],
+	    '糘': [0x55, 0x24, 0x1a],
+	    '糜': [0x55, 0xa4, 0xea],
+	    '糞': [0x55, 0x62, 0x9c],
+	    '糟': [0x55, 0x02, 0xbc],
+	    '糠': [0x55, 0x70, 0xd8],
+	    '糢': [0x55, 0x80, 0x9a],
+	    '糧': [0x55, 0x8a],
+	    '糯': [0x55, 0x66, 0x5c],
+	    '糲': [0x55, 0xa0, 0xea],
+	    '糴': [0x55, 0x30, 0x4a],
+	    '糶': [0x55, 0x30, 0xde],
+	    '糸': [0x0f],
+	    '糺': [0x07, 0x24, 0x68],
+	    '系': [0x4d],
+	    '糾': [0x07, 0xaa],
+	    '紀': [0x07, 0x8e],
+	    '紂': [0x07, 0x30, 0xae],
+	    '約': [0x07, 0xfc],
+	    '紅': [0x45, 0x9c],
+	    '紆': [0x07, 0x8a],
+	    '紊': [0x07, 0xc0, 0x48],
+	    '紋': [0x45, 0xc8],
+	    '納': [0x45, 0x98],
+	    '紐': [0x45, 0xce],
+	    '純': [0x07, 0xda],
+	    '紕': [0x07, 0x24, 0x38],
+	    '紗': [0x07, 0xd4, 0xbc],
+	    '紘': [0x07, 0x3c],
+	    '紙': [0x07, 0xe8],
+	    '級': [0x07, 0x4c],
+	    '紛': [0x07, 0x2e],
+	    '紜': [0x07, 0x24, 0x1e],
+	    '素': [0xd7, 0x4c],
+	    '紡': [0x07, 0xdc],
+	    '索': [0x35, 0x4c],
+	    '紫': [0xa7, 0xfa],
+	    '紬': [0x07, 0x62, 0x18],
+	    '紮': [0x07, 0x86, 0x68],
+	    '累': [0x63, 0x4c],
+	    '細': [0x07, 0x6a],
+	    '紲': [0x07, 0x34, 0x78],
+	    '紳': [0x07, 0xae],
+	    '紵': [0x07, 0xa0, 0x7e],
+	    '紹': [0x07, 0x5a],
+	    '紺': [0x45, 0x3a],
+	    '紿': [0x07, 0x10, 0x4a],
+	    '終': [0x07, 0xba],
+	    '絃': [0x07, 0xc0, 0x4c],
+	    '組': [0x07, 0xbc],
+	    '絅': [0x07, 0xe4, 0x3e],
+	    '絆': [0x07, 0xca],
+	    '絋': [0x07, 0x70, 0x9c],
+	    '経': [0x07, 0x9e],
+	    '絎': [0x07, 0x24, 0xd8],
+	    '絏': [0x07, 0x80, 0xae],
+	    '結': [0x45, 0x3e],
+	    '絖': [0x07, 0xc0, 0x0c],
+	    '絛': [0x07, 0x90, 0xd8],
+	    '絞': [0x07, 0x6e],
+	    '絡': [0x07, 0x3e],
+	    '絢': [0x07, 0xc4, 0xba],
+	    '絣': [0x07, 0x7c],
+	    '給': [0x07, 0xec],
+	    '絨': [0x07, 0x24, 0xec],
+	    '絮': [0x07, 0xd2, 0x3e],
+	    '統': [0x07, 0xc8],
+	    '絲': [0x07, 0x06, 0x0e],
+	    '絳': [0x45, 0x24, 0x9c],
+	    '絵': [0x07, 0x1e],
+	    '絶': [0x45, 0xae],
+	    '絹': [0x07, 0x2a],
+	    '絽': [0x07, 0x80, 0xee],
+	    '綉': [0x07, 0x54, 0x4c],
+	    '綏': [0x07, 0xd2, 0xc8],
+	    '經': [0x07, 0x06, 0x9e],
+	    '継': [0x07, 0x5c],
+	    '続': [0x07, 0x7a],
+	    '綛': [0x07, 0x52, 0xac],
+	    '綜': [0x07, 0x12, 0x5e],
+	    '綟': [0x07, 0x74, 0x9e],
+	    '綢': [0x07, 0xe4, 0x7a],
+	    '綣': [0x07, 0x96, 0xaa],
+	    '綫': [0x07, 0xc0, 0xec],
+	    '綬': [0x45, 0xc0, 0x6c],
+	    '維': [0x07, 0x0e],
+	    '綮': [0x07, 0x74, 0x3e],
+	    '綯': [0x07, 0x24, 0x7c],
+	    '綰': [0x07, 0x12, 0x2a],
+	    '綱': [0x07, 0xd8],
+	    '網': [0x45, 0xd8],
+	    '綴': [0x45, 0x6c],
+	    '綵': [0x07, 0x24, 0x6e],
+	    '綸': [0x07, 0x24, 0x3a],
+	    '綺': [0x07, 0x96, 0x8a],
+	    '綻': [0x07, 0x12, 0x78],
+	    '綽': [0x07, 0xc4, 0x7c],
+	    '綾': [0x07, 0x24, 0xba],
+	    '綿': [0x45, 0xfe],
+	    '緇': [0x07, 0x22, 0x6a],
+	    '緊': [0x45, 0xba],
+	    '緋': [0x45, 0xf8],
+	    '総': [0x07, 0x9c],
+	    '緑': [0xa7, 0xee],
+	    '緒': [0x45, 0xcc],
+	    '緕': [0x07, 0xa2, 0xc8],
+	    '緘': [0x07, 0xc6, 0x48],
+	    '線': [0x07, 0xb8],
+	    '緜': [0x45, 0x24, 0xfe],
+	    '緝': [0x07, 0x24, 0xee],
+	    '緞': [0x07, 0x10, 0x5c],
+	    '締': [0x07, 0xea],
+	    '緡': [0x07, 0xe6, 0xe8],
+	    '緤': [0x07, 0x24, 0x78],
+	    '編': [0x07, 0xde],
+	    '緩': [0x07, 0x98],
+	    '緬': [0x07, 0xf6, 0x18],
+	    '緯': [0x45, 0x0e],
+	    '緲': [0x45, 0xd4, 0xbc],
+	    '練': [0x07, 0xce],
+	    '緻': [0x07, 0xb0, 0xd8],
+	    '縁': [0x45, 0xbc],
+	    '縄': [0x07, 0xfe],
+	    '縅': [0x07, 0xc6, 0xda],
+	    '縉': [0x07, 0xc4, 0xce],
+	    '縊': [0x07, 0x8c],
+	    '縋': [0x45, 0x2a],
+	    '縒': [0x07, 0xb4, 0x9c],
+	    '縛': [0x07, 0x7e],
+	    '縞': [0x45, 0x1e],
+	    '縟': [0x07, 0xa6, 0x3c],
+	    '縡': [0x07, 0x12, 0xea],
+	    '縢': [0x23, 0x96, 0x4c],
+	    '縣': [0xf7, 0xf6, 0x4c],
+	    '縦': [0x07, 0x78],
+	    '縫': [0x45, 0xdc],
+	    '縮': [0x07, 0x2c],
+	    '縱': [0x07, 0x06, 0x78],
+	    '縲': [0x07, 0x62, 0x4c],
+	    '縵': [0x07, 0x24, 0xea],
+	    '縷': [0x07, 0x3a],
+	    '縹': [0x07, 0x46, 0x5e],
+	    '縺': [0x07, 0xc6, 0xfa],
+	    '縻': [0x07, 0xa4, 0xea],
+	    '總': [0x07, 0x06, 0x9c],
+	    '績': [0x07, 0x68],
+	    '繁': [0xc3, 0x4c],
+	    '繃': [0x07, 0x58],
+	    '繆': [0x07, 0xf2, 0x0c],
+	    '繊': [0x07, 0xee],
+	    '繋': [0xf3, 0x4c],
+	    '繍': [0x07, 0x52, 0xd8],
+	    '織': [0x07, 0xcc],
+	    '繕': [0x07, 0xbe],
+	    '繖': [0x07, 0x22, 0xb8],
+	    '繙': [0x07, 0x54, 0x6a],
+	    '繚': [0x45, 0x24, 0x3c],
+	    '繝': [0x07, 0xf4, 0x2a],
+	    '繞': [0x07, 0x24, 0x7a],
+	    '繦': [0x07, 0xd0, 0xfa],
+	    '繧': [0x07, 0x66, 0x1e],
+	    '繩': [0x07, 0x06, 0xfe],
+	    '繪': [0x07, 0x06, 0x1e],
+	    '繭': [0x07, 0xfa],
+	    '繰': [0x07, 0x1a],
+	    '繹': [0x45, 0x6a],
+	    '繻': [0x07, 0x66, 0x5c],
+	    '繼': [0x07, 0x06, 0x5c],
+	    '繽': [0x07, 0x12, 0x68],
+	    '繿': [0x07, 0xb2, 0x8c],
+	    '纂': [0x67, 0x4c],
+	    '纃': [0x07, 0x24, 0xaa],
+	    '纈': [0x07, 0x72, 0x3e],
+	    '纉': [0x07, 0x60, 0x9e],
+	    '續': [0x07, 0x06, 0x7a],
+	    '纎': [0x07, 0xc0, 0xee],
+	    '纏': [0x45, 0x78],
+	    '纐': [0x07, 0xc0, 0x6e],
+	    '纒': [0x45, 0x44, 0x78],
+	    '纓': [0x07, 0xd2, 0x68],
+	    '纔': [0x07, 0x52, 0x2c],
+	    '纖': [0x07, 0x06, 0xee],
+	    '纛': [0x45, 0xd6, 0xca],
+	    '纜': [0x07, 0xf6, 0xba],
+	    '缶': [0x11, 0xe8],
+	    '缸': [0xe1, 0x94, 0x0a],
+	    '缺': [0xe1, 0xe0, 0x0a],
+	    '罅': [0xe1, 0x24, 0xba],
+	    '罌': [0xe1, 0x60, 0x68],
+	    '罍': [0xe1, 0x62, 0x6a],
+	    '罎': [0xe1, 0xc4, 0x6e],
+	    '罐': [0xe1, 0x9e],
+	    '网': [0xb3, 0x04, 0x0c],
+	    '罔': [0x05, 0xd8],
+	    '罕': [0xb3, 0x10, 0x8a],
+	    '罘': [0xb3, 0x10, 0xda],
+	    '罟': [0xb3, 0x36, 0x3c],
+	    '罠': [0xb3, 0xe8],
+	    '罧': [0xb3, 0x86, 0x8e],
+	    '罨': [0xb3, 0x3a],
+	    '罩': [0xb3, 0xc4, 0x7c],
+	    '罪': [0xb3, 0x0c],
+	    '罫': [0xb3, 0x24, 0x7a],
+	    '置': [0xb3, 0xfe],
+	    '罰': [0xb3, 0x5e],
+	    '署': [0xb3, 0xcc],
+	    '罵': [0xb5, 0xba],
+	    '罷': [0xb3, 0x2a],
+	    '罸': [0xb3, 0x16, 0xae],
+	    '罹': [0xb3, 0x2e],
+	    '羂': [0xb3, 0x06, 0x2a],
+	    '羃': [0xb3, 0x92, 0xae],
+	    '羅': [0xb3, 0x0e],
+	    '羆': [0xb3, 0x22, 0xf8],
+	    '羇': [0xb3, 0x96, 0x8a],
+	    '羈': [0xb3, 0x3c],
+	    '羊': [0xb5, 0x0c],
+	    '羌': [0xb5, 0x24, 0x2c],
+	    '美': [0xb5, 0x9e],
+	    '羔': [0xb5, 0x24, 0x9c],
+	    '羚': [0xb5, 0x90, 0x3c],
+	    '羝': [0xb5, 0x24, 0xe8],
+	    '羞': [0xb5, 0x24, 0xbc],
+	    '羣': [0xb5, 0x14, 0x0a],
+	    '群': [0x15, 0xbc],
+	    '羨': [0xb5, 0xe8],
+	    '義': [0xb5, 0xec],
+	    '羮': [0xb5, 0x24, 0xf8],
+	    '羯': [0xb5, 0x24, 0xb8],
+	    '羲': [0xb5, 0x54, 0x4c],
+	    '羶': [0xb5, 0xc0, 0xec],
+	    '羸': [0x85, 0x24, 0xbc],
+	    '羹': [0xb5, 0xc0, 0xf8],
+	    '羽': [0xf3, 0x0c],
+	    '翁': [0x95, 0xfa],
+	    '翅': [0xc3, 0xf2, 0x0c],
+	    '翆': [0xf3, 0x24, 0x1c],
+	    '翊': [0xe3, 0xf2, 0x0c],
+	    '翌': [0xf3, 0xea],
+	    '習': [0xf3, 0xcc],
+	    '翔': [0xb5, 0xf2, 0x0c],
+	    '翕': [0x27, 0xf2, 0x0c],
+	    '翠': [0xf3, 0x14, 0x3c],
+	    '翡': [0xf1, 0xf2, 0x0c],
+	    '翦': [0xf3, 0x22, 0x5a],
+	    '翩': [0xd7, 0xf2, 0x0c],
+	    '翫': [0xf3, 0x02, 0x2c],
+	    '翰': [0x35, 0xfa],
+	    '翳': [0xf5, 0xf2, 0x0c],
+	    '翹': [0x73, 0xf2, 0x0c],
+	    '翻': [0x63, 0xfa],
+	    '翼': [0xf3, 0x9c],
+	    '耀': [0xc1, 0x24, 0x58],
+	    '老': [0x75, 0x0c],
+	    '考': [0x75, 0x28],
+	    '耄': [0x75, 0x10, 0xbe],
+	    '者': [0x75, 0xcc],
+	    '耆': [0x75, 0x10, 0x4e],
+	    '耋': [0x75, 0x10, 0xd8],
+	    '而': [0x81, 0x5c],
+	    '耐': [0x55, 0xae],
+	    '耒': [0x95, 0x48],
+	    '耕': [0x95, 0x0e],
+	    '耗': [0x87, 0xbe],
+	    '耘': [0x95, 0x1e],
+	    '耙': [0x95, 0x24, 0xce],
+	    '耜': [0x95, 0x24, 0x2a],
+	    '耡': [0x95, 0x52, 0xbc],
+	    '耨': [0x95, 0xa6, 0x3c],
+	    '耳': [0xef],
+	    '耶': [0xe7, 0xaa],
+	    '耻': [0xe7, 0x24, 0xe8],
+	    '耽': [0xe7, 0xc8],
+	    '耿': [0xe7, 0xf8],
+	    '聆': [0xe7, 0x90, 0x3c],
+	    '聊': [0xe7, 0x24, 0xaa],
+	    '聒': [0xe7, 0x36, 0xbe],
+	    '聖': [0xe7, 0xde],
+	    '聘': [0xe7, 0x24, 0x6a],
+	    '聚': [0x65, 0x24, 0xbc],
+	    '聞': [0xf5, 0xee],
+	    '聟': [0xe7, 0x50, 0x3e],
+	    '聡': [0xe7, 0x9c],
+	    '聢': [0xe7, 0x12, 0x78],
+	    '聨': [0xe7, 0xc0, 0x4c],
+	    '聯': [0xe7, 0x24, 0x4c],
+	    '聰': [0xe7, 0xe6, 0x9c],
+	    '聲': [0xe7, 0xe6, 0x5c],
+	    '聳': [0xd1, 0xee],
+	    '聴': [0xe7, 0x3c],
+	    '聶': [0xe7, 0xe6, 0xee],
+	    '職': [0xe7, 0xcc],
+	    '聹': [0xe7, 0x24, 0x7e],
+	    '聽': [0xe7, 0xe6, 0x3c],
+	    '聾': [0xe7, 0xdc],
+	    '聿': [0x41, 0xda],
+	    '肄': [0x51, 0x40, 0xda],
+	    '肅': [0x53, 0x52, 0xd8],
+	    '肆': [0x75, 0x24, 0xda],
+	    '肇': [0xd3, 0x74, 0x3e],
+	    '肉': [0x8d],
+	    '肋': [0x85, 0x3c],
+	    '肌': [0x85, 0xc8],
+	    '肓': [0x85, 0x20, 0xdc],
+	    '肖': [0xb5, 0x8c],
+	    '肘': [0x85, 0x38],
+	    '肚': [0x85, 0x24, 0x7a],
+	    '肛': [0x85, 0x94, 0x0a],
+	    '肝': [0x85, 0x8a],
+	    '股': [0x85, 0x5c],
+	    '肢': [0x85, 0xca],
+	    '肥': [0x85, 0xce],
+	    '肩': [0x75, 0x8c],
+	    '肪': [0x85, 0xdc],
+	    '肬': [0x85, 0x80, 0x98],
+	    '肭': [0x85, 0xe4, 0x98],
+	    '肯': [0xe1, 0x2a],
+	    '肱': [0x85, 0x24, 0x3c],
+	    '育': [0xc1, 0x2a],
+	    '肴': [0xf7, 0x8c],
+	    '肺': [0x85, 0xae],
+	    '胃': [0x63, 0x8c],
+	    '胄': [0x63, 0x2a],
+	    '胆': [0x85, 0xcc],
+	    '背': [0x85, 0x8e],
+	    '胎': [0x85, 0x4a],
+	    '胖': [0x85, 0x34, 0xca],
+	    '胙': [0x85, 0x24, 0xaa],
+	    '胚': [0x85, 0x10, 0xda],
+	    '胛': [0x85, 0xa0, 0x9c],
+	    '胝': [0x85, 0x02, 0xe8],
+	    '胞': [0x23, 0xfc],
+	    '胡': [0x81, 0x2a],
+	    '胤': [0x85, 0x0e],
+	    '胥': [0x85, 0x24, 0x78],
+	    '胯': [0x85, 0x24, 0x9e],
+	    '胱': [0x85, 0xc0, 0x0c],
+	    '胴': [0x85, 0x7c],
+	    '胸': [0x85, 0xfc],
+	    '胼': [0x85, 0x24, 0x7c],
+	    '能': [0x23, 0x5c],
+	    '脂': [0x85, 0x4e],
+	    '脅': [0x53, 0x2a],
+	    '脆': [0x85, 0x92, 0xaa],
+	    '脇': [0x85, 0x5e],
+	    '脈': [0x85, 0xee],
+	    '脉': [0x85, 0xb0, 0x18],
+	    '脊': [0x85, 0x98],
+	    '脚': [0x85, 0xaa],
+	    '脛': [0x85, 0x9e],
+	    '脣': [0x85, 0x10, 0x3c],
+	    '脩': [0x85, 0x90, 0xd8],
+	    '脯': [0x85, 0x80, 0xdc],
+	    '脱': [0x85, 0x2c],
+	    '脳': [0x85, 0x6e],
+	    '脹': [0x23, 0x7c],
+	    '脾': [0x85, 0x6a],
+	    '腆': [0x85, 0x62, 0x2e],
+	    '腋': [0x85, 0xc0, 0x4a],
+	    '腎': [0x85, 0x6c],
+	    '腐': [0x71, 0x8c],
+	    '腑': [0x23, 0xae],
+	    '腓': [0x85, 0x10, 0xf8],
+	    '腔': [0x85, 0x12, 0x8e],
+	    '腕': [0x85, 0x1a],
+	    '腟': [0x85, 0x12, 0xd8],
+	    '腥': [0x85, 0xc4, 0x0e],
+	    '腦': [0x85, 0x84, 0x6e],
+	    '腫': [0x85, 0xc0, 0x2e],
+	    '腮': [0x85, 0x62, 0xac],
+	    '腰': [0x85, 0xda],
+	    '腱': [0x85, 0xc2, 0xda],
+	    '腴': [0x85, 0x40, 0xd8],
+	    '腸': [0x85, 0xa8],
+	    '腹': [0x85, 0xba],
+	    '腺': [0x85, 0xc4, 0xb8],
+	    '腿': [0x85, 0xc6, 0x58],
+	    '膀': [0x85, 0x24, 0xdc],
+	    '膂': [0x85, 0xd4, 0xd8],
+	    '膃': [0x85, 0x24, 0x8c],
+	    '膈': [0x85, 0xec],
+	    '膊': [0x85, 0x24, 0x7e],
+	    '膏': [0x85, 0x1e],
+	    '膓': [0x85, 0x84, 0xa8],
+	    '膕': [0x85, 0xe4, 0xde],
+	    '膚': [0xb3, 0x6a],
+	    '膜': [0x85, 0x9a],
+	    '膝': [0x85, 0xb8],
+	    '膠': [0x85, 0xfa],
+	    '膣': [0x85, 0x24, 0xd8],
+	    '膤': [0x85, 0x66, 0xbe],
+	    '膨': [0x23, 0x1a],
+	    '膩': [0x85, 0xe4, 0x0e],
+	    '膰': [0x85, 0x54, 0x6a],
+	    '膳': [0x85, 0x3e],
+	    '膵': [0x85, 0x1c],
+	    '膸': [0x85, 0x84, 0x2a],
+	    '膺': [0x85, 0x78],
+	    '膽': [0x85, 0x84, 0xcc],
+	    '膾': [0x85, 0x26, 0x1e],
+	    '膿': [0x85, 0x62, 0x3c],
+	    '臀': [0x85, 0x9c],
+	    '臂': [0x85, 0xea],
+	    '臆': [0x23, 0x4a],
+	    '臈': [0x93, 0x24, 0x2a],
+	    '臉': [0x85, 0x24, 0x2e],
+	    '臍': [0x85, 0x0c],
+	    '臑': [0x85, 0x66, 0x5c],
+	    '臓': [0x23, 0xba],
+	    '臘': [0x23, 0x3c],
+	    '臙': [0x85, 0xe4, 0x9e],
+	    '臚': [0x85, 0x24, 0x6a],
+	    '臟': [0x23, 0x22, 0xba],
+	    '臠': [0x17, 0x24, 0x8c],
+	    '臣': [0x11, 0xba],
+	    '臥': [0xb3, 0x4a],
+	    '臧': [0xd7, 0x24, 0xba],
+	    '臨': [0xb3, 0x1a],
+	    '自': [0xf7, 0x0a],
+	    '臭': [0xf7, 0x9e],
+	    '至': [0x11, 0xd8],
+	    '致': [0xb1, 0xd8],
+	    '臺': [0x11, 0x10, 0x4a],
+	    '臻': [0xd1, 0x96, 0x5c],
+	    '臼': [0x81, 0x5a],
+	    '臾': [0x41, 0xd8],
+	    '舁': [0x53, 0x24, 0x7c],
+	    '舂': [0x97, 0x80, 0x5a],
+	    '舅': [0x53, 0x62, 0x5a],
+	    '與': [0x25, 0x24, 0x18],
+	    '興': [0xe5, 0x2e],
+	    '舉': [0x03, 0x12, 0x7e],
+	    '舊': [0xc5, 0xc4, 0x18],
+	    '舌': [0x37, 0xbe],
+	    '舍': [0x27, 0x26, 0xbe],
+	    '舎': [0x27, 0xbe],
+	    '舐': [0xe1, 0x36, 0xbe],
+	    '舒': [0x27, 0x10, 0x78],
+	    '舖': [0x27, 0x26, 0xdc],
+	    '舗': [0x27, 0xdc],
+	    '舘': [0xb7, 0x24, 0x2a],
+	    '舛': [0xd5, 0x20, 0x0e],
+	    '舜': [0x21, 0xc8],
+	    '舞': [0xf3, 0xdc],
+	    '舟': [0xd3, 0x0a],
+	    '舩': [0xd3, 0x80, 0x9c],
+	    '航': [0xd3, 0x2c],
+	    '舫': [0xd3, 0x24, 0xdc],
+	    '般': [0xd3, 0x5c],
+	    '舮': [0xd3, 0x24, 0x7c],
+	    '舳': [0xd3, 0x62, 0x18],
+	    '舵': [0xd3, 0x24, 0xce],
+	    '舶': [0xd3, 0xcc],
+	    '舷': [0xd3, 0xc0, 0x4c],
+	    '舸': [0xd3, 0x30, 0x8a],
+	    '船': [0xd3, 0x1e],
+	    '艀': [0xd3, 0xb0, 0x1a],
+	    '艇': [0xd3, 0xde],
+	    '艘': [0xd3, 0x24, 0x1e],
+	    '艙': [0xd3, 0x26, 0x1c],
+	    '艚': [0xd3, 0x02, 0xbc],
+	    '艝': [0xd3, 0x66, 0xbe],
+	    '艟': [0xd3, 0xe2, 0x2e],
+	    '艢': [0xd3, 0xe4, 0x3e],
+	    '艤': [0xd3, 0xb4, 0xec],
+	    '艦': [0xd3, 0x8c],
+	    '艨': [0xd3, 0x24, 0x9a],
+	    '艪': [0xd3, 0x24, 0xcc],
+	    '艫': [0xd3, 0x24, 0x6a],
+	    '艮': [0x41, 0x58],
+	    '良': [0x31, 0x58],
+	    '艱': [0x93, 0x24, 0x58],
+	    '色': [0xa7, 0x0a],
+	    '艶': [0x63, 0xae],
+	    '艷': [0x63, 0x62, 0xae],
+	    '艸': [0x41, 0x9a],
+	    '艾': [0xa5, 0xfe],
+	    '芋': [0xa5, 0x8a],
+	    '芍': [0xa5, 0x30, 0xfc],
+	    '芒': [0xa5, 0x20, 0xdc],
+	    '芙': [0xa5, 0x40, 0x9e],
+	    '芝': [0xa5, 0x5c],
+	    '芟': [0x93, 0xc0, 0x5c],
+	    '芥': [0xa5, 0x98],
+	    '芦': [0xa5, 0x24, 0x7c],
+	    '芫': [0xa5, 0x02, 0x2c],
+	    '芬': [0x93, 0x24, 0x2e],
+	    '芭': [0xa5, 0x24, 0xce],
+	    '芯': [0x93, 0x24, 0xac],
+	    '花': [0x93, 0x38],
+	    '芳': [0x93, 0xdc],
+	    '芸': [0x93, 0x1e],
+	    '芹': [0xa5, 0x68],
+	    '芻': [0x81, 0xfc],
+	    '芽': [0x93, 0xfe],
+	    '苅': [0x93, 0xf6, 0x5a],
+	    '苑': [0x93, 0x24, 0x1a],
+	    '苒': [0x93, 0x34, 0xec],
+	    '苓': [0xa5, 0x90, 0x3c],
+	    '苔': [0xa5, 0x4a],
+	    '苗': [0x63, 0x9a],
+	    '苙': [0xa5, 0xe2, 0x0a],
+	    '苛': [0x93, 0x30, 0x8a],
+	    '苜': [0xa5, 0xc0, 0xfe],
+	    '苞': [0x93, 0xf4, 0x0c],
+	    '苟': [0x93, 0xf4, 0x28],
+	    '苡': [0xa5, 0x10, 0xfc],
+	    '苣': [0x93, 0x02, 0xba],
+	    '若': [0x93, 0xa8],
+	    '苦': [0x93, 0x3c],
+	    '苧': [0xa5, 0xa0, 0x7e],
+	    '苫': [0x93, 0x36, 0x7c],
+	    '英': [0x93, 0x1c],
+	    '苳': [0x93, 0xb2, 0x0a],
+	    '苴': [0x93, 0x20, 0xbc],
+	    '苹': [0xa5, 0x26, 0x8a],
+	    '苺': [0xa5, 0x38],
+	    '苻': [0x93, 0x42, 0xae],
+	    '茂': [0x93, 0xce],
+	    '范': [0x93, 0x24, 0xaa],
+	    '茄': [0xa5, 0x52, 0x3e],
+	    '茅': [0xa5, 0x78],
+	    '茆': [0xa5, 0xa2, 0x1a],
+	    '茉': [0xa5, 0x86, 0x28],
+	    '茎': [0x93, 0x9e],
+	    '茖': [0x93, 0xb2, 0x3e],
+	    '茗': [0xa5, 0xd4, 0x3e],
+	    '茘': [0xa5, 0x10, 0x5a],
+	    '茜': [0xa5, 0xb8],
+	    '茣': [0x93, 0x20, 0x9c],
+	    '茨': [0xa5, 0xe8],
+	    '茫': [0x93, 0x20, 0xdc],
+	    '茯': [0xa5, 0x42, 0x9e],
+	    '茱': [0xa5, 0x20, 0x8a],
+	    '茲': [0x93, 0x44, 0x4c],
+	    '茴': [0x93, 0xe4, 0x3e],
+	    '茵': [0x93, 0xe4, 0x9e],
+	    '茶': [0xa5, 0x8e],
+	    '茸': [0xa5, 0xee],
+	    '茹': [0x93, 0xd2, 0x3e],
+	    '荀': [0xa5, 0xc4, 0xba],
+	    '荅': [0xa5, 0x26, 0xec],
+	    '草': [0x9b],
+	    '荊': [0xa5, 0x56, 0x5e],
+	    '荏': [0xa5, 0x90, 0x4e],
+	    '荐': [0x93, 0x34, 0x9c],
+	    '荒': [0x93, 0x9a],
+	    '荘': [0x93, 0xde],
+	    '荳': [0xa5, 0x20, 0x7c],
+	    '荵': [0xa5, 0x52, 0xac],
+	    '荷': [0x93, 0x4a],
+	    '荻': [0xa5, 0x24, 0xf8],
+	    '荼': [0xa5, 0x26, 0xfc],
+	    '莅': [0x93, 0x42, 0xea],
+	    '莇': [0x93, 0x52, 0xbc],
+	    '莉': [0xa5, 0x24, 0x5a],
+	    '莊': [0x93, 0x92, 0xde],
+	    '莎': [0xa5, 0xb0, 0xdc],
+	    '莓': [0xa5, 0xc0, 0xca],
+	    '莖': [0x93, 0x92, 0x9e],
+	    '莚': [0x93, 0xc2, 0x0a],
+	    '莞': [0xa5, 0x12, 0x2c],
+	    '莟': [0x93, 0x26, 0x3e],
+	    '莠': [0xa5, 0x54, 0x4c],
+	    '莢': [0x93, 0x24, 0x4a],
+	    '莨': [0xa5, 0x30, 0x58],
+	    '莪': [0xa5, 0xe4, 0x0a],
+	    '莫': [0x81, 0x9a],
+	    '莱': [0xa5, 0x86, 0x4a],
+	    '莵': [0xa5, 0xb4, 0x1a],
+	    '莽': [0x93, 0x96, 0x7c],
+	    '菁': [0xa5, 0xa6, 0xbe],
+	    '菅': [0xa5, 0x2a],
+	    '菊': [0xa5, 0x0c],
+	    '菌': [0x93, 0xec],
+	    '菎': [0xa5, 0xc4, 0x38],
+	    '菓': [0x93, 0x8e],
+	    '菖': [0xa5, 0x26, 0xcc],
+	    '菘': [0xa5, 0xa4, 0x9c],
+	    '菜': [0x93, 0x6e],
+	    '菟': [0xa5, 0x52, 0x2c],
+	    '菠': [0xa5, 0x46, 0xce],
+	    '菩': [0xa5, 0x24, 0xea],
+	    '菫': [0xa5, 0xc0, 0x8e],
+	    '華': [0x93, 0x8a],
+	    '菰': [0xa5, 0x94, 0x9c],
+	    '菱': [0xa5, 0x9a],
+	    '菲': [0xa5, 0x10, 0xf8],
+	    '菴': [0x93, 0x80, 0xac],
+	    '菷': [0x93, 0x20, 0x2e],
+	    '菻': [0xa5, 0x12, 0x8e],
+	    '菽': [0xa5, 0x24, 0x6c],
+	    '萃': [0x93, 0x14, 0x3c],
+	    '萄': [0xa5, 0xc0, 0x7c],
+	    '萇': [0xa5, 0x10, 0x7c],
+	    '萋': [0x93, 0xd2, 0xaa],
+	    '萌': [0x93, 0xc4, 0x2a],
+	    '萍': [0x93, 0x26, 0x8a],
+	    '萎': [0x93, 0xda],
+	    '萓': [0xa5, 0x12, 0xbc],
+	    '萠': [0x93, 0x22, 0x2a],
+	    '萢': [0x93, 0x46, 0x48],
+	    '萩': [0xa5, 0xf8],
+	    '萪': [0xa5, 0x54, 0x7c],
+	    '萬': [0xa1, 0xa0, 0xea],
+	    '萱': [0xa5, 0x12, 0xcc],
+	    '萵': [0xa5, 0x24, 0x8a],
+	    '萸': [0xa5, 0x24, 0xd8],
+	    '萼': [0x93, 0x24, 0x9e],
+	    '落': [0x93, 0x3e],
+	    '葆': [0x93, 0x42, 0x3e],
+	    '葉': [0x93, 0x78],
+	    '葎': [0xa5, 0xd0, 0xda],
+	    '著': [0x75, 0x9a],
+	    '葛': [0xa5, 0x24, 0xb8],
+	    '葡': [0xa5, 0xc0, 0xdc],
+	    '葢': [0xb5, 0xc0, 0x2a],
+	    '董': [0x93, 0xc0, 0x2e],
+	    '葦': [0xa5, 0x0e],
+	    '葩': [0x93, 0xc4, 0x0a],
+	    '葫': [0xa5, 0x36, 0x3c],
+	    '葬': [0x93, 0x7c],
+	    '葭': [0xa5, 0xc0, 0x5c],
+	    '葮': [0xa5, 0x10, 0x5c],
+	    '葯': [0x93, 0x06, 0xfc],
+	    '葱': [0xa5, 0xac],
+	    '葵': [0xa5, 0xba],
+	    '葷': [0x93, 0x24, 0xfa],
+	    '葹': [0xa5, 0xd4, 0x6e],
+	    '葺': [0x93, 0xee],
+	    '蒂': [0x93, 0xe2, 0xae],
+	    '蒄': [0x93, 0x24, 0xae],
+	    '蒋': [0xa5, 0xd6, 0x0c],
+	    '蒐': [0x93, 0x14, 0x4e],
+	    '蒔': [0x93, 0xc4, 0xae],
+	    '蒙': [0x93, 0x24, 0xbc],
+	    '蒜': [0xa5, 0x24, 0x5e],
+	    '蒟': [0xa5, 0x12, 0xfc],
+	    '蒡': [0xa5, 0x10, 0xdc],
+	    '蒭': [0x93, 0x80, 0xfc],
+	    '蒲': [0xa5, 0x46, 0xdc],
+	    '蒸': [0x93, 0x4e],
+	    '蒹': [0xa5, 0x26, 0x9e],
+	    '蒻': [0xa5, 0xd0, 0xd8],
+	    '蒼': [0x93, 0x26, 0x1c],
+	    '蒿': [0xa5, 0x30, 0x1e],
+	    '蓁': [0x93, 0x96, 0x5c],
+	    '蓄': [0x93, 0x6a],
+	    '蓆': [0x93, 0x70, 0xbe],
+	    '蓉': [0xa5, 0x12, 0x6a],
+	    '蓊': [0x93, 0x94, 0xfa],
+	    '蓋': [0xb5, 0x2a],
+	    '蓍': [0xa5, 0x74, 0x0c],
+	    '蓐': [0x93, 0xa6, 0x3c],
+	    '蓑': [0x93, 0x24, 0x5e],
+	    '蓖': [0xa5, 0x24, 0x38],
+	    '蓙': [0x93, 0x70, 0x4a],
+	    '蓚': [0x93, 0x42, 0x1a],
+	    '蓬': [0xa5, 0xdc],
+	    '蓮': [0xa5, 0xce],
+	    '蓴': [0xa5, 0x12, 0x7e],
+	    '蓼': [0xa5, 0xf2, 0x0c],
+	    '蓿': [0xa5, 0x24, 0x2c],
+	    '蔀': [0x93, 0xe2, 0xaa],
+	    '蔆': [0xa5, 0xc0, 0xba],
+	    '蔑': [0xb3, 0xce],
+	    '蔓': [0x93, 0x24, 0xea],
+	    '蔔': [0xa5, 0x24, 0xda],
+	    '蔕': [0x93, 0xa6, 0x78],
+	    '蔗': [0xa5, 0x70, 0x7c],
+	    '蔘': [0x93, 0x02, 0x1a],
+	    '蔚': [0x93, 0x74, 0x5e],
+	    '蔟': [0x93, 0xd4, 0x58],
+	    '蔡': [0x93, 0x56, 0xaa],
+	    '蔦': [0xa5, 0xbe],
+	    '蔬': [0xa5, 0x70, 0x9a],
+	    '蔭': [0x93, 0xa2, 0x6c],
+	    '蔵': [0x93, 0xba],
+	    '蔽': [0x93, 0x24, 0xb8],
+	    '蕀': [0xa5, 0xa0, 0xa8],
+	    '蕁': [0xa5, 0x36, 0xae],
+	    '蕃': [0x93, 0x54, 0x6a],
+	    '蕈': [0xa5, 0xc4, 0x3c],
+	    '蕉': [0xa5, 0x06, 0xf8],
+	    '蕊': [0x87, 0xa4, 0xac],
+	    '蕋': [0x93, 0xe0, 0xe8],
+	    '蕎': [0xa5, 0x24, 0x5c],
+	    '蕕': [0xa5, 0x96, 0xbe],
+	    '蕗': [0xa5, 0xe6, 0x3e],
+	    '蕘': [0x93, 0x80, 0x7a],
+	    '蕚': [0x93, 0xc0, 0x9e],
+	    '蕣': [0xa5, 0x20, 0xc8],
+	    '蕨': [0xa5, 0xc8],
+	    '蕩': [0x93, 0x46, 0xa8],
+	    '蕪': [0xa5, 0xf2, 0xf8],
+	    '蕭': [0xa5, 0x52, 0xd8],
+	    '蕷': [0xa5, 0x14, 0x78],
+	    '蕾': [0x93, 0x66, 0x6a],
+	    '薀': [0xa5, 0x46, 0x8c],
+	    '薄': [0x93, 0x7e],
+	    '薇': [0xa5, 0xd0, 0xb8],
+	    '薈': [0x93, 0x26, 0x1e],
+	    '薊': [0xa5, 0x5a],
+	    '薐': [0xa5, 0x54, 0xba],
+	    '薑': [0xa5, 0x24, 0xca],
+	    '薔': [0xa5, 0xe4, 0x3e],
+	    '薗': [0x93, 0xe4, 0x1e],
+	    '薙': [0x93, 0x50, 0x0c],
+	    '薛': [0xa5, 0x34, 0xea],
+	    '薜': [0x93, 0x80, 0xea],
+	    '薤': [0xa5, 0xc0, 0xf8],
+	    '薦': [0x93, 0xbc],
+	    '薨': [0x93, 0xd4, 0x0c],
+	    '薩': [0xa3, 0x78],
+	    '薪': [0x93, 0xea],
+	    '薫': [0x93, 0xf8],
+	    '薬': [0x93, 0x4c],
+	    '薮': [0x93, 0x24, 0xa8],
+	    '薯': [0xa5, 0xb2, 0xcc],
+	    '薹': [0x93, 0x10, 0x4a],
+	    '薺': [0xa5, 0xa2, 0xc8],
+	    '藁': [0x93, 0x24, 0x8e],
+	    '藉': [0x93, 0xc4, 0x5e],
+	    '藍': [0xa5, 0x8c],
+	    '藏': [0x93, 0x92, 0xba],
+	    '藐': [0x93, 0xb4, 0xcc],
+	    '藕': [0x93, 0x20, 0x9a],
+	    '藜': [0xa5, 0x12, 0x5c],
+	    '藝': [0x93, 0x92, 0x1e],
+	    '藤': [0xa5, 0xda],
+	    '藥': [0x93, 0x92, 0x4c],
+	    '藩': [0x93, 0xb8],
+	    '藪': [0x93, 0xc0, 0xa8],
+	    '藷': [0xa5, 0x64, 0xcc],
+	    '藹': [0x93, 0x16, 0xb8],
+	    '藺': [0xa5, 0x12, 0x0e],
+	    '藻': [0xa5, 0x24, 0x4e],
+	    '藾': [0xa5, 0x14, 0xa8],
+	    '蘂': [0x93, 0xa4, 0xac],
+	    '蘆': [0xa5, 0x6a],
+	    '蘇': [0xa5, 0xbc],
+	    '蘊': [0x93, 0x8c],
+	    '蘋': [0xa5, 0xe0, 0x1c],
+	    '蘓': [0xa5, 0xc0, 0xbc],
+	    '蘖': [0x87, 0xe2, 0x0a],
+	    '蘗': [0xa5, 0x80, 0xea],
+	    '蘚': [0xa5, 0xb6, 0xbc],
+	    '蘢': [0xa5, 0xe2, 0xac],
+	    '蘭': [0xa5, 0xfc],
+	    '蘯': [0x93, 0x24, 0x4e],
+	    '蘰': [0x93, 0xc0, 0xea],
+	    '蘿': [0xa5, 0xb2, 0x0e],
+	    '虍': [0xb3, 0x40, 0x48],
+	    '虎': [0xb3, 0x48],
+	    '虐': [0xb3, 0x8a],
+	    '虔': [0xb3, 0xc0, 0x48],
+	    '處': [0xb3, 0xb2, 0xc8],
+	    '虚': [0xb3, 0xf8],
+	    '虜': [0xb3, 0x5a],
+	    '虞': [0xb3, 0x9c],
+	    '號': [0x37, 0x36, 0xba],
+	    '虧': [0xb3, 0x24, 0xfc],
+	    '虫': [0xf3, 0x0a],
+	    '虱': [0xf3, 0x28],
+	    '虹': [0x95, 0x1a],
+	    '虻': [0xf3, 0x20, 0xdc],
+	    '蚊': [0xf3, 0xc8],
+	    '蚋': [0xf3, 0xe4, 0x98],
+	    '蚌': [0xf3, 0x96, 0xdc],
+	    '蚓': [0xf3, 0xd0, 0x18],
+	    '蚕': [0xf3, 0xfa],
+	    '蚣': [0xf3, 0x80, 0x9c],
+	    '蚤': [0xf3, 0x6c],
+	    '蚩': [0xf3, 0x24, 0x58],
+	    '蚪': [0xf3, 0x30, 0x7c],
+	    '蚫': [0xf3, 0xf4, 0x0c],
+	    '蚯': [0xf3, 0x92, 0x18],
+	    '蚰': [0xf3, 0x62, 0x18],
+	    '蚶': [0xf3, 0x10, 0x3a],
+	    '蛄': [0xf3, 0x36, 0x3c],
+	    '蛆': [0xf3, 0x20, 0xbc],
+	    '蛇': [0xf3, 0xce],
+	    '蛉': [0xf3, 0x90, 0x3c],
+	    '蛋': [0x71, 0x6a],
+	    '蛍': [0xf1, 0x2c],
+	    '蛎': [0xf3, 0xa0, 0xea],
+	    '蛔': [0xf3, 0xe4, 0x3e],
+	    '蛙': [0xf3, 0x7a],
+	    '蛛': [0xf3, 0x20, 0x8a],
+	    '蛞': [0xf3, 0x36, 0xbe],
+	    '蛟': [0xf3, 0xc0, 0x6e],
+	    '蛤': [0xf3, 0x26, 0xec],
+	    '蛩': [0xf3, 0xc0, 0xc8],
+	    '蛬': [0xf3, 0x10, 0x9c],
+	    '蛭': [0xf3, 0x10, 0xd8],
+	    '蛮': [0x17, 0xfa],
+	    '蛯': [0xf3, 0x74, 0x0c],
+	    '蛸': [0xf3, 0x8c],
+	    '蛹': [0xf3, 0xe4, 0x48],
+	    '蛻': [0xf3, 0xc0, 0x2c],
+	    '蛾': [0xf3, 0xec],
+	    '蜀': [0x11, 0xfa],
+	    '蜂': [0xd5, 0xfa],
+	    '蜃': [0xf3, 0x24, 0x3c],
+	    '蜆': [0xf3, 0xf6, 0x2c],
+	    '蜈': [0xf3, 0x20, 0x9c],
+	    '蜉': [0xf3, 0xb0, 0x1a],
+	    '蜊': [0xf3, 0x54, 0x5a],
+	    '蜍': [0xf3, 0x26, 0xfc],
+	    '蜑': [0xc3, 0xf2, 0x0a],
+	    '蜒': [0xf3, 0xc2, 0x0a],
+	    '蜘': [0xf3, 0x50, 0x3e],
+	    '蜚': [0xf3, 0x10, 0xf8],
+	    '蜜': [0x13, 0xfa],
+	    '蜥': [0xf3, 0x86, 0x1c],
+	    '蜩': [0xf3, 0xe4, 0x7a],
+	    '蜴': [0xf3, 0xc4, 0xa8],
+	    '蜷': [0xf3, 0x96, 0xaa],
+	    '蜻': [0xf3, 0xa6, 0xbe],
+	    '蜿': [0xf3, 0x24, 0x1a],
+	    '蝉': [0xf3, 0x3e],
+	    '蝋': [0xf3, 0x3c],
+	    '蝌': [0xf3, 0x54, 0x7c],
+	    '蝎': [0xf3, 0x24, 0xb8],
+	    '蝓': [0xf3, 0x20, 0xd8],
+	    '蝕': [0xb7, 0xfa],
+	    '蝗': [0xf3, 0xc0, 0xde],
+	    '蝙': [0xf3, 0x24, 0xde],
+	    '蝟': [0xf3, 0x62, 0x8c],
+	    '蝠': [0xf3, 0x24, 0xda],
+	    '蝣': [0xf3, 0xc2, 0x48],
+	    '蝦': [0xf3, 0x24, 0x5c],
+	    '蝨': [0xf3, 0x80, 0x3c],
+	    '蝪': [0xf3, 0x24, 0xa8],
+	    '蝮': [0xf3, 0x24, 0xba],
+	    '蝴': [0xf3, 0x80, 0x2a],
+	    '蝶': [0xf3, 0x78],
+	    '蝸': [0xf3, 0x24, 0x8a],
+	    '蝿': [0xf3, 0xfe],
+	    '螂': [0xf3, 0x50, 0xaa],
+	    '融': [0x37, 0xfa],
+	    '螟': [0xf3, 0xc0, 0xcc],
+	    '螢': [0xf1, 0xf0, 0x2c],
+	    '螫': [0xf3, 0x82, 0xb8],
+	    '螯': [0xf3, 0x40, 0xdc],
+	    '螳': [0xf3, 0xc0, 0x7a],
+	    '螺': [0xf3, 0x62, 0x4c],
+	    '螻': [0xf3, 0x24, 0x3a],
+	    '螽': [0xf3, 0xb2, 0x0a],
+	    '蟀': [0xf3, 0xc0, 0x3c],
+	    '蟄': [0xf3, 0x72, 0x1c],
+	    '蟆': [0xf3, 0x80, 0x9a],
+	    '蟇': [0xf3, 0x24, 0x9a],
+	    '蟋': [0xf3, 0x24, 0xac],
+	    '蟐': [0xf3, 0xc0, 0xae],
+	    '蟒': [0xf3, 0x24, 0x7c],
+	    '蟠': [0xf3, 0x54, 0x6a],
+	    '蟯': [0xf3, 0x24, 0x7a],
+	    '蟲': [0xf3, 0xf2, 0xfa],
+	    '蟶': [0xf3, 0xe6, 0xde],
+	    '蟷': [0xf3, 0xc0, 0xda],
+	    '蟹': [0xf3, 0xe4, 0xbc],
+	    '蟻': [0xf3, 0xbc],
+	    '蟾': [0xf3, 0x24, 0xcc],
+	    '蠅': [0xf3, 0x24, 0xfe],
+	    '蠍': [0xf3, 0xe0, 0x0a],
+	    '蠎': [0xf3, 0x96, 0x7c],
+	    '蠏': [0xf3, 0xc0, 0xec],
+	    '蠑': [0xf3, 0xc0, 0x8e],
+	    '蠕': [0xf3, 0x66, 0x5c],
+	    '蠖': [0xf3, 0xc0, 0x9a],
+	    '蠡': [0xf3, 0x24, 0xbc],
+	    '蠢': [0xf3, 0x5a],
+	    '蠣': [0xf3, 0x24, 0x78],
+	    '蠧': [0xf3, 0x24, 0xea],
+	    '蠱': [0xf3, 0x24, 0x8c],
+	    '蠶': [0xf3, 0x24, 0xfa],
+	    '蠹': [0xf3, 0xc0, 0xea],
+	    '蠻': [0x17, 0x16, 0xfa],
+	    '血': [0x03, 0x8c],
+	    '衂': [0x53, 0x02, 0x8c],
+	    '衄': [0xb5, 0x02, 0x8c],
+	    '衆': [0x85, 0xbc],
+	    '行': [0xd9],
+	    '衍': [0xd1, 0x24, 0xd8],
+	    '衒': [0xd1, 0xc0, 0x4c],
+	    '術': [0xd1, 0x4e],
+	    '街': [0xd1, 0x7a],
+	    '衙': [0xd1, 0x22, 0x3e],
+	    '衛': [0xd1, 0x1e],
+	    '衝': [0xd1, 0x2e],
+	    '衞': [0xd1, 0xd0, 0x1e],
+	    '衡': [0xd1, 0xbe],
+	    '衢': [0xd1, 0x24, 0x0e],
+	    '衣': [0x57, 0x0a],
+	    '表': [0xd7, 0x5e],
+	    '衫': [0x57, 0x24, 0x1a],
+	    '衰': [0x25, 0x5e],
+	    '衲': [0x57, 0xe4, 0x98],
+	    '衵': [0x57, 0x24, 0xcc],
+	    '衷': [0x03, 0x5e],
+	    '衽': [0x57, 0xa0, 0x4e],
+	    '衾': [0x57, 0x26, 0x0a],
+	    '衿': [0x57, 0xcc],
+	    '袁': [0x81, 0x1e],
+	    '袂': [0x57, 0x24, 0x7e],
+	    '袈': [0x57, 0x52, 0x3e],
+	    '袋': [0x57, 0xec],
+	    '袍': [0x57, 0xf4, 0x0c],
+	    '袒': [0x57, 0x10, 0xcc],
+	    '袖': [0x57, 0x18],
+	    '袗': [0x57, 0x12, 0x1a],
+	    '袙': [0x57, 0xc4, 0x0a],
+	    '袞': [0x25, 0x56, 0x0a],
+	    '袢': [0x57, 0x34, 0xca],
+	    '袤': [0x57, 0x02, 0x78],
+	    '被': [0x57, 0xce],
+	    '袮': [0x57, 0x56, 0xc8],
+	    '袰': [0x57, 0x30, 0xca],
+	    '袱': [0x57, 0x42, 0x9e],
+	    '袴': [0x57, 0x24, 0x9e],
+	    '袵': [0x57, 0x90, 0x4e],
+	    '袷': [0x57, 0x26, 0xec],
+	    '袿': [0x57, 0x24, 0x7a],
+	    '裁': [0xe7, 0x5e],
+	    '裂': [0xd5, 0x5e],
+	    '裃': [0x57, 0x12, 0xc8],
+	    '裄': [0x57, 0x24, 0xd8],
+	    '装': [0x73, 0x5e],
+	    '裏': [0x27, 0x5e],
+	    '裔': [0x57, 0x1e],
+	    '裕': [0x57, 0x6a],
+	    '裘': [0x57, 0x34, 0x4e],
+	    '裙': [0x57, 0x14, 0x0a],
+	    '補': [0x57, 0xdc],
+	    '裝': [0x73, 0x72, 0x5e],
+	    '裟': [0x57, 0xb0, 0xdc],
+	    '裡': [0x57, 0x30, 0x2e],
+	    '裨': [0x57, 0x62, 0xaa],
+	    '裲': [0x57, 0x66, 0x18],
+	    '裳': [0x57, 0x80, 0xca],
+	    '裴': [0x57, 0x10, 0xf8],
+	    '裸': [0x57, 0x8e],
+	    '裹': [0x57, 0x62, 0x8e],
+	    '裼': [0x57, 0xc4, 0xa8],
+	    '製': [0xb7, 0x5e],
+	    '裾': [0x57, 0x74, 0x0a],
+	    '褂': [0x57, 0x72, 0x7a],
+	    '褄': [0x57, 0xd2, 0xaa],
+	    '複': [0x57, 0xba],
+	    '褊': [0x57, 0x24, 0xde],
+	    '褌': [0x57, 0xfa],
+	    '褐': [0x57, 0xb8],
+	    '褒': [0x25, 0x4a],
+	    '褓': [0x57, 0x42, 0x3e],
+	    '褝': [0x57, 0x24, 0x3e],
+	    '褞': [0x57, 0x24, 0x8c],
+	    '褥': [0x57, 0xa6, 0x3c],
+	    '褪': [0x57, 0xc6, 0x58],
+	    '褫': [0x57, 0xb2, 0x48],
+	    '褶': [0x57, 0xf2, 0xcc],
+	    '褸': [0x57, 0x24, 0x3a],
+	    '褻': [0xc1, 0x56, 0x0a],
+	    '襁': [0x57, 0xd0, 0xfa],
+	    '襃': [0xc1, 0x42, 0x3e],
+	    '襄': [0x41, 0xee],
+	    '襌': [0x57, 0x36, 0x3e],
+	    '襍': [0x57, 0x86, 0x0e],
+	    '襖': [0x57, 0xe4, 0x5c],
+	    '襞': [0x57, 0x24, 0xea],
+	    '襟': [0x57, 0x86, 0x5e],
+	    '襠': [0x57, 0xc0, 0xda],
+	    '襤': [0x57, 0xb2, 0x8c],
+	    '襦': [0x57, 0x66, 0x5c],
+	    '襪': [0x57, 0xb2, 0xce],
+	    '襭': [0x57, 0x72, 0x3e],
+	    '襯': [0x57, 0xe2, 0xfe],
+	    '襲': [0x57, 0xac],
+	    '襴': [0x57, 0xf4, 0xce],
+	    '襷': [0x57, 0x12, 0x7e],
+	    '襾': [0x03, 0x30, 0x4e],
+	    '西': [0x31, 0x4e],
+	    '要': [0x47, 0xda],
+	    '覃': [0xb1, 0xc4, 0x3c],
+	    '覆': [0xb1, 0xba],
+	    '覇': [0x75, 0x2a],
+	    '覈': [0x47, 0x24, 0xb8],
+	    '覊': [0x47, 0x12, 0xbc],
+	    '見': [0xf7, 0x2c],
+	    '規': [0x97, 0x2c],
+	    '覓': [0xc1, 0xf6, 0x2c],
+	    '視': [0x57, 0xfe],
+	    '覗': [0xf7, 0x98],
+	    '覘': [0x37, 0xf6, 0x2c],
+	    '覚': [0xc1, 0xfe],
+	    '覡': [0x91, 0xf6, 0x2c],
+	    '覦': [0xd1, 0xf6, 0x2c],
+	    '覧': [0xf7, 0xba],
+	    '覩': [0x75, 0xf6, 0x2c],
+	    '親': [0xe3, 0xfe],
+	    '覬': [0x51, 0xf6, 0x2c],
+	    '覯': [0xf7, 0x24, 0xfa],
+	    '覲': [0x87, 0xf6, 0x2c],
+	    '観': [0x97, 0xfe],
+	    '覺': [0xc1, 0xc0, 0xfe],
+	    '覽': [0xf7, 0xf6, 0xba],
+	    '覿': [0xf7, 0x72, 0x68],
+	    '觀': [0x97, 0x96, 0xfe],
+	    '角': [0xe5, 0x88],
+	    '觚': [0xe5, 0x24, 0x9c],
+	    '觜': [0xe5, 0x30, 0x18],
+	    '觝': [0xe5, 0x02, 0xe8],
+	    '解': [0xe5, 0xbc],
+	    '触': [0xe5, 0xfa],
+	    '觧': [0xe5, 0xb4, 0x0c],
+	    '觴': [0xe5, 0xa8],
+	    '觸': [0xe5, 0xe4, 0xfa],
+	    '言': [0x1f],
+	    '訂': [0x17, 0x7e],
+	    '訃': [0x17, 0x7c],
+	    '計': [0x17, 0x3c],
+	    '訊': [0x65, 0x3c],
+	    '訌': [0x17, 0x94, 0x0a],
+	    '討': [0x17, 0xae],
+	    '訐': [0x17, 0x24, 0x8a],
+	    '訓': [0x65, 0x8a],
+	    '訖': [0x17, 0xc0, 0x1c],
+	    '託': [0x17, 0x4a],
+	    '記': [0x17, 0x8e],
+	    '訛': [0x17, 0x90, 0x38],
+	    '訝': [0x17, 0xfe],
+	    '訟': [0x65, 0x9c],
+	    '訣': [0x65, 0x7e],
+	    '訥': [0x17, 0xe4, 0x98],
+	    '訪': [0x17, 0xdc],
+	    '設': [0x17, 0x5c],
+	    '許': [0x17, 0xbc],
+	    '訳': [0x65, 0x6a],
+	    '訴': [0x65, 0x68],
+	    '訶': [0x17, 0x30, 0x8a],
+	    '診': [0x65, 0x1a],
+	    '註': [0x17, 0xde],
+	    '証': [0x65, 0x0e],
+	    '詁': [0x17, 0x36, 0x3c],
+	    '詆': [0x17, 0x02, 0xe8],
+	    '詈': [0xb3, 0x1e],
+	    '詐': [0x17, 0xaa],
+	    '詑': [0x17, 0x24, 0xce],
+	    '詒': [0x17, 0x10, 0x4a],
+	    '詔': [0x17, 0x5a],
+	    '評': [0x17, 0x2e],
+	    '詛': [0x17, 0x20, 0xbc],
+	    '詞': [0x17, 0x98],
+	    '詠': [0x65, 0x18],
+	    '詢': [0x17, 0xc4, 0xba],
+	    '詣': [0x65, 0x4e],
+	    '試': [0x65, 0xec],
+	    '詩': [0x65, 0xae],
+	    '詫': [0x65, 0x4a],
+	    '詬': [0x17, 0x70, 0x3e],
+	    '詭': [0x17, 0x92, 0xaa],
+	    '詮': [0x65, 0x2e],
+	    '詰': [0x65, 0x3e],
+	    '話': [0x17, 0xbe],
+	    '該': [0x65, 0x4c],
+	    '詳': [0x65, 0xbc],
+	    '詼': [0x17, 0x70, 0xf8],
+	    '誂': [0x65, 0x2c],
+	    '誄': [0x17, 0x86, 0x4a],
+	    '誅': [0x17, 0x20, 0x8a],
+	    '誇': [0x17, 0x9e],
+	    '誉': [0xc1, 0x1e],
+	    '誌': [0x65, 0xac],
+	    '認': [0x65, 0x5a],
+	    '誑': [0x17, 0x96, 0xde],
+	    '誓': [0x17, 0x68],
+	    '誕': [0x17, 0xca],
+	    '誘': [0x17, 0x4c],
+	    '誚': [0x17, 0xb4, 0x8c],
+	    '語': [0x6d],
+	    '誠': [0x17, 0xce],
+	    '誡': [0x17, 0x74, 0xec],
+	    '誣': [0x17, 0x90, 0xda],
+	    '誤': [0x17, 0x9c],
+	    '誥': [0x17, 0x94, 0x9a],
+	    '誦': [0x17, 0x24, 0x7a],
+	    '誨': [0x65, 0xca],
+	    '説': [0x17, 0x2c],
+	    '読': [0x17, 0x7a],
+	    '誰': [0x17, 0x0e],
+	    '課': [0x17, 0x6a],
+	    '誹': [0x65, 0xf8],
+	    '誼': [0x17, 0x12, 0xbc],
+	    '調': [0x65, 0x7a],
+	    '諂': [0x17, 0x24, 0x5a],
+	    '諄': [0x17, 0xc0, 0x9c],
+	    '談': [0x17, 0xf8],
+	    '請': [0x65, 0xbe],
+	    '諌': [0x65, 0xce],
+	    '諍': [0x17, 0xb4, 0x2c],
+	    '諏': [0x17, 0xe6, 0x6c],
+	    '諒': [0x17, 0x3e],
+	    '論': [0x17, 0x3a],
+	    '諚': [0x17, 0x12, 0x78],
+	    '諛': [0x65, 0xd8],
+	    '諜': [0x17, 0x78],
+	    '諞': [0x17, 0x24, 0xde],
+	    '諠': [0x17, 0x12, 0xcc],
+	    '諡': [0x17, 0x24, 0xfc],
+	    '諢': [0x17, 0x24, 0xfa],
+	    '諤': [0x17, 0x24, 0x9e],
+	    '諦': [0x17, 0xea],
+	    '諧': [0x17, 0x30, 0xcc],
+	    '諫': [0x65, 0x30, 0xce],
+	    '諭': [0x17, 0xd8],
+	    '諮': [0x65, 0xe8],
+	    '諱': [0x17, 0x24, 0x0e],
+	    '諳': [0x65, 0xea],
+	    '諷': [0x17, 0xf2, 0x2c],
+	    '諸': [0x65, 0xcc],
+	    '諺': [0x17, 0x1a],
+	    '諾': [0x17, 0xa8],
+	    '謀': [0x65, 0x3a],
+	    '謁': [0x17, 0xb8],
+	    '謂': [0x17, 0x8c],
+	    '謄': [0x23, 0x1e],
+	    '謇': [0x13, 0x24, 0x6c],
+	    '謌': [0x17, 0x82, 0xe8],
+	    '謎': [0x17, 0xc6, 0x5c],
+	    '謐': [0x17, 0xa4, 0x28],
+	    '謔': [0x17, 0xb2, 0x8a],
+	    '謖': [0x17, 0x24, 0x6a],
+	    '謗': [0x65, 0xdc],
+	    '謙': [0x65, 0x9e],
+	    '謚': [0x17, 0x26, 0x8c],
+	    '講': [0x65, 0xfa],
+	    '謝': [0x17, 0xee],
+	    '謠': [0x17, 0x16, 0x8a],
+	    '謡': [0x17, 0x8a],
+	    '謦': [0x17, 0xe6, 0x5c],
+	    '謨': [0x17, 0x24, 0x9a],
+	    '謫': [0x17, 0x24, 0x1c],
+	    '謬': [0x17, 0xf2, 0x0c],
+	    '謳': [0x17, 0xfc],
+	    '謹': [0x65, 0x8e],
+	    '謾': [0x17, 0xc0, 0xea],
+	    '譁': [0x17, 0x92, 0x8a],
+	    '證': [0x65, 0x64, 0x0e],
+	    '譌': [0x17, 0xc0, 0xf8],
+	    '譎': [0x17, 0x02, 0x78],
+	    '譏': [0x17, 0x44, 0xec],
+	    '譖': [0x17, 0xc0, 0xcc],
+	    '識': [0x17, 0xcc],
+	    '譚': [0x17, 0xc4, 0x3c],
+	    '譛': [0x17, 0xc4, 0x9e],
+	    '譜': [0x17, 0xda],
+	    '譟': [0x17, 0x36, 0x1a],
+	    '警': [0xf5, 0x6c],
+	    '譫': [0x17, 0x24, 0xcc],
+	    '譬': [0x17, 0x24, 0xea],
+	    '譯': [0x65, 0x64, 0x6a],
+	    '議': [0x17, 0xec],
+	    '譱': [0xb5, 0xb4, 0x3e],
+	    '譲': [0x65, 0xee],
+	    '譴': [0x17, 0xc2, 0x2a],
+	    '護': [0x17, 0x9a],
+	    '譽': [0xc1, 0xc0, 0x1e],
+	    '讀': [0x17, 0x16, 0x7a],
+	    '讃': [0x17, 0x60, 0x9e],
+	    '變': [0x17, 0x16, 0xba],
+	    '讌': [0x17, 0xc0, 0x7a],
+	    '讎': [0x65, 0x24, 0xa8],
+	    '讐': [0x65, 0xa8],
+	    '讒': [0x17, 0x52, 0x2c],
+	    '讓': [0x65, 0x64, 0xee],
+	    '讖': [0x17, 0x24, 0xee],
+	    '讙': [0x17, 0xc0, 0x9e],
+	    '讚': [0x17, 0x24, 0x68],
+	    '谷': [0x63, 0x0a],
+	    '谺': [0xf7, 0x62, 0x0a],
+	    '谿': [0x45, 0x62, 0x0a],
+	    '豁': [0x25, 0x6a],
+	    '豆': [0x21, 0x7c],
+	    '豈': [0x21, 0x58],
+	    '豊': [0x63, 0x7c],
+	    '豌': [0x13, 0x20, 0x7c],
+	    '豎': [0x75, 0x24, 0xba],
+	    '豐': [0x63, 0x62, 0x7c],
+	    '豕': [0x81, 0x80, 0xbc],
+	    '豚': [0xb5, 0x48],
+	    '象': [0xb5, 0x88],
+	    '豢': [0x97, 0x24, 0xbc],
+	    '豪': [0xc1, 0xbc],
+	    '豫': [0x11, 0x10, 0x78],
+	    '豬': [0x97, 0x12, 0x2e],
+	    '豸': [0xb5, 0x80, 0x88],
+	    '豹': [0xb5, 0xce],
+	    '豺': [0xb5, 0x3c],
+	    '豼': [0xb5, 0x24, 0x38],
+	    '貂': [0xb5, 0x52, 0xec],
+	    '貅': [0xb5, 0x42, 0x8e],
+	    '貉': [0x97, 0xb2, 0x3e],
+	    '貊': [0xb5, 0xa0, 0xfe],
+	    '貌': [0xb5, 0xcc],
+	    '貍': [0xb5, 0x30, 0x2e],
+	    '貎': [0xb5, 0x94, 0x2c],
+	    '貔': [0xb5, 0xc0, 0x38],
+	    '貘': [0xb5, 0x80, 0x9a],
+	    '貝': [0x69],
+	    '貞': [0x61, 0x7c],
+	    '負': [0x53, 0x1c],
+	    '財': [0x61, 0x3c],
+	    '貢': [0x61, 0x9c],
+	    '貧': [0x27, 0x68],
+	    '貨': [0x61, 0x38],
+	    '販': [0x61, 0xe8],
+	    '貪': [0x61, 0x2e],
+	    '貫': [0x31, 0x7a],
+	    '責': [0xd7, 0x68],
+	    '貭': [0x61, 0x60, 0x68],
+	    '貮': [0x11, 0xe4, 0x0e],
+	    '貯': [0x61, 0x7e],
+	    '貰': [0x61, 0x78],
+	    '貲': [0x61, 0x30, 0x18],
+	    '貳': [0xe5, 0xe4, 0x0e],
+	    '貴': [0x61, 0x8e],
+	    '貶': [0x61, 0x04, 0x5c],
+	    '買': [0xb3, 0x68],
+	    '貸': [0x61, 0xec],
+	    '費': [0xf7, 0x68],
+	    '貼': [0x61, 0xca],
+	    '貽': [0x61, 0x10, 0x4a],
+	    '貿': [0x23, 0x68],
+	    '賀': [0x53, 0x68],
+	    '賁': [0x21, 0xda],
+	    '賂': [0x61, 0xb2, 0x3e],
+	    '賃': [0x61, 0x4e],
+	    '賄': [0x61, 0x2a],
+	    '資': [0xb1, 0x68],
+	    '賈': [0x21, 0x4e],
+	    '賊': [0x61, 0xee],
+	    '賍': [0x61, 0x10, 0x7a],
+	    '賎': [0x15, 0xec],
+	    '賑': [0x35, 0x1c],
+	    '賓': [0x13, 0x68],
+	    '賚': [0x61, 0x86, 0x4a],
+	    '賛': [0x61, 0x9e],
+	    '賜': [0x61, 0xa8],
+	    '賞': [0xc1, 0x68],
+	    '賠': [0x61, 0xea],
+	    '賢': [0x61, 0xba],
+	    '賣': [0x73, 0x72, 0x68],
+	    '賤': [0x61, 0x24, 0xec],
+	    '賦': [0x15, 0xe8],
+	    '質': [0x61, 0x68],
+	    '賭': [0x61, 0xcc],
+	    '賺': [0x61, 0x26, 0x9e],
+	    '賻': [0x61, 0x10, 0x7e],
+	    '購': [0x61, 0xfa],
+	    '賽': [0x61, 0x1a],
+	    '贄': [0x61, 0x1c],
+	    '贅': [0x61, 0xdc],
+	    '贇': [0x61, 0xe4, 0xe8],
+	    '贈': [0x61, 0xbc],
+	    '贊': [0x61, 0x60, 0x9e],
+	    '贋': [0x71, 0x68],
+	    '贍': [0x61, 0x24, 0xcc],
+	    '贏': [0x85, 0x24, 0x68],
+	    '贐': [0x61, 0xd2, 0xf8],
+	    '贓': [0x61, 0x24, 0xba],
+	    '贔': [0x61, 0x24, 0x68],
+	    '贖': [0x61, 0x7a],
+	    '赤': [0xa7, 0x8a],
+	    '赦': [0x83, 0xb8],
+	    '赧': [0x15, 0xa6, 0x8a],
+	    '赫': [0x83, 0x8a],
+	    '赭': [0x83, 0x74, 0xcc],
+	    '走': [0xcb],
+	    '赱': [0xc3, 0x18],
+	    '赳': [0xc3, 0x24, 0xaa],
+	    '赴': [0xc3, 0x7c],
+	    '起': [0xc3, 0x8e],
+	    '趁': [0xc3, 0x24, 0x1a],
+	    '超': [0xc3, 0x5a],
+	    '越': [0xc3, 0xce],
+	    '趙': [0xc3, 0xb4, 0x8c],
+	    '趣': [0xc3, 0x6c],
+	    '趨': [0xc3, 0xba],
+	    '足': [0xe7, 0x0c],
+	    '趺': [0xe7, 0x40, 0x9e],
+	    '趾': [0xe7, 0xc0, 0xe8],
+	    '跂': [0xe7, 0xc2, 0x0c],
+	    '跋': [0xe7, 0x34, 0x6c],
+	    '跌': [0xe7, 0x80, 0x9e],
+	    '跏': [0xe7, 0x52, 0x3e],
+	    '跖': [0xe7, 0x24, 0xea],
+	    '跚': [0xe7, 0x24, 0xde],
+	    '跛': [0xe7, 0xce],
+	    '距': [0xe7, 0xba],
+	    '跟': [0xe7, 0x40, 0x58],
+	    '跡': [0xe7, 0x1e],
+	    '跣': [0xe7, 0x72, 0xc8],
+	    '跨': [0xe7, 0x24, 0x9e],
+	    '跪': [0xe7, 0x92, 0xaa],
+	    '跫': [0xe7, 0x24, 0xc8],
+	    '路': [0xe7, 0x3e],
+	    '跳': [0xe7, 0x2c],
+	    '践': [0xe7, 0xec],
+	    '跼': [0xe7, 0x74, 0xfc],
+	    '跿': [0xe7, 0x24, 0xca],
+	    '踈': [0xe7, 0x86, 0xa8],
+	    '踉': [0xe7, 0x30, 0x58],
+	    '踊': [0xe7, 0x7a],
+	    '踏': [0xe7, 0x4e],
+	    '踐': [0xe7, 0xe6, 0xec],
+	    '踝': [0xe7, 0x62, 0x8e],
+	    '踞': [0xe7, 0x74, 0x0a],
+	    '踟': [0xe7, 0x24, 0x58],
+	    '踪': [0xe7, 0x12, 0x5e],
+	    '踰': [0xe7, 0x24, 0xd8],
+	    '踴': [0xe7, 0x52, 0x6a],
+	    '踵': [0xe7, 0xc0, 0x2e],
+	    '蹂': [0xe7, 0x86, 0x78],
+	    '蹄': [0xe7, 0xea],
+	    '蹇': [0x13, 0xe6, 0x0c],
+	    '蹈': [0xe7, 0x24, 0x5a],
+	    '蹉': [0xe7, 0xb4, 0x9c],
+	    '蹊': [0xe7, 0x4c],
+	    '蹌': [0xe7, 0x26, 0x1c],
+	    '蹐': [0xe7, 0x84, 0x98],
+	    '蹕': [0xe7, 0x62, 0x8a],
+	    '蹙': [0xc7, 0xee],
+	    '蹟': [0xe7, 0xd6, 0x68],
+	    '蹠': [0xe7, 0x70, 0x7c],
+	    '蹣': [0xe7, 0x24, 0xfe],
+	    '蹤': [0xe7, 0xd0, 0x78],
+	    '蹲': [0xe7, 0xb6, 0xae],
+	    '蹴': [0xe7, 0x98],
+	    '蹶': [0xe7, 0xe0, 0x0a],
+	    '蹼': [0xe7, 0x24, 0x4a],
+	    '躁': [0xe7, 0x1a],
+	    '躄': [0xe7, 0x80, 0xea],
+	    '躅': [0xe7, 0x10, 0xfa],
+	    '躇': [0xe7, 0x74, 0x9a],
+	    '躊': [0xe7, 0xd6, 0xae],
+	    '躋': [0xe7, 0xa2, 0xc8],
+	    '躍': [0xe7, 0x58],
+	    '躑': [0xe7, 0x24, 0xbe],
+	    '躓': [0xe7, 0x68],
+	    '躔': [0xe7, 0x24, 0x78],
+	    '躙': [0xe7, 0x24, 0xfc],
+	    '躡': [0xe7, 0x24, 0xee],
+	    '躪': [0xe7, 0xc0, 0xfc],
+	    '身': [0xe7, 0x0a],
+	    '躬': [0xe7, 0xd0, 0x0a],
+	    '躯': [0xe7, 0xf4, 0x48],
+	    '躰': [0xe7, 0x86, 0x88],
+	    '躱': [0xe7, 0x02, 0x4c],
+	    '躾': [0xe7, 0xbc],
+	    '軅': [0xe7, 0xc0, 0x78],
+	    '軆': [0xe7, 0x62, 0x7c],
+	    '軈': [0xe7, 0x70, 0xac],
+	    '車': [0xfb],
+	    '軋': [0xf3, 0x24, 0x68],
+	    '軌': [0xf3, 0x1c],
+	    '軍': [0x25, 0xfa],
+	    '軒': [0xf3, 0x8a],
+	    '軛': [0xf3, 0x70, 0xaa],
+	    '軟': [0xf3, 0xe8],
+	    '転': [0xf3, 0x7e],
+	    '軣': [0x11, 0xf2, 0x1a],
+	    '軫': [0xf3, 0xc0, 0x1a],
+	    '軸': [0xf3, 0x6a],
+	    '軻': [0xf3, 0x30, 0x8a],
+	    '軼': [0xf3, 0x80, 0x9e],
+	    '軽': [0xf3, 0x9e],
+	    '軾': [0xf3, 0xe4, 0x0c],
+	    '較': [0xf3, 0x6e],
+	    '輅': [0xf3, 0xb2, 0x3e],
+	    '載': [0xe7, 0xfa],
+	    '輊': [0xf3, 0x24, 0xd8],
+	    '輌': [0xf3, 0x12, 0x6e],
+	    '輒': [0xf3, 0x24, 0xee],
+	    '輓': [0xf3, 0x24, 0x2c],
+	    '輔': [0xf3, 0x24, 0xdc],
+	    '輕': [0xf3, 0xf2, 0x9e],
+	    '輙': [0xf3, 0xe6, 0x6c],
+	    '輛': [0xf3, 0x66, 0x18],
+	    '輜': [0xf3, 0x22, 0x6a],
+	    '輝': [0xc1, 0xfa],
+	    '輟': [0xf3, 0x24, 0x6c],
+	    '輦': [0xf3, 0x40, 0x9e],
+	    '輩': [0xf1, 0xfa],
+	    '輪': [0xf3, 0x3a],
+	    '輯': [0xf3, 0xee],
+	    '輳': [0xf3, 0x96, 0x9e],
+	    '輸': [0xf3, 0xd8],
+	    '輹': [0xf3, 0xba],
+	    '輻': [0xf3, 0xda],
+	    '輾': [0xf3, 0x74, 0x7c],
+	    '輿': [0xf3, 0x24, 0xec],
+	    '轂': [0xf3, 0xc0, 0x5c],
+	    '轄': [0xf3, 0xde],
+	    '轅': [0xf3, 0x24, 0x1e],
+	    '轆': [0xf3, 0xb4, 0x38],
+	    '轉': [0xf3, 0xf2, 0x7e],
+	    '轌': [0xf3, 0x66, 0xbe],
+	    '轍': [0xf3, 0x2a],
+	    '轎': [0xf3, 0x12, 0x5c],
+	    '轗': [0xf3, 0xc6, 0xac],
+	    '轜': [0xf3, 0x24, 0x6e],
+	    '轟': [0xf3, 0x1a],
+	    '轡': [0xf3, 0x24, 0x3e],
+	    '轢': [0xf3, 0xc4, 0x4c],
+	    '轣': [0xf3, 0x94, 0xe8],
+	    '轤': [0xf3, 0x24, 0x6a],
+	    '辛': [0x35, 0xea],
+	    '辜': [0x35, 0x36, 0x3c],
+	    '辞': [0xb7, 0xea],
+	    '辟': [0x81, 0xea],
+	    '辣': [0xe3, 0xa8],
+	    '辧': [0x11, 0xf2, 0x7c],
+	    '辨': [0xf3, 0xf2, 0x7c],
+	    '辭': [0xb7, 0xb6, 0xea],
+	    '辮': [0xf3, 0x24, 0x4c],
+	    '辯': [0xf3, 0xc0, 0x7c],
+	    '辰': [0x11, 0x3c],
+	    '辱': [0xa7, 0x3c],
+	    '農': [0x63, 0x3c],
+	    '辷': [0xc7, 0x24, 0x2c],
+	    '辺': [0xc7, 0x5a],
+	    '辻': [0xc7, 0x3c],
+	    '込': [0xc7, 0x4a],
+	    '辿': [0xc3, 0x58],
+	    '迂': [0xc3, 0x24, 0x8a],
+	    '迄': [0xc7, 0xc8],
+	    '迅': [0xc3, 0x3c],
+	    '迎': [0xc7, 0xaa],
+	    '近': [0xc7, 0x68],
+	    '返': [0xc7, 0xe8],
+	    '迚': [0xc7, 0x30, 0x2c],
+	    '迢': [0xc7, 0x52, 0xec],
+	    '迥': [0xc7, 0xe4, 0x9c],
+	    '迦': [0xc7, 0x52, 0x3e],
+	    '迩': [0xc7, 0xe4, 0xfe],
+	    '迪': [0xc7, 0x62, 0x18],
+	    '迫': [0xc7, 0xcc],
+	    '迭': [0xc3, 0x9e],
+	    '迯': [0xc7, 0xd4, 0x7c],
+	    '述': [0xc3, 0x4e],
+	    '迴': [0xc7, 0xe4, 0x3e],
+	    '迷': [0xc7, 0x5c],
+	    '迸': [0xc7, 0x24, 0x7c],
+	    '迹': [0xc7, 0x24, 0x1e],
+	    '迺': [0xc7, 0x30, 0x4e],
+	    '追': [0xc7, 0x2a],
+	    '退': [0xc7, 0x58],
+	    '送': [0xc7, 0x9e],
+	    '逃': [0xc7, 0x2c],
+	    '逅': [0xc7, 0x70, 0x3e],
+	    '逆': [0xc7, 0xca],
+	    '逋': [0xc7, 0x80, 0xdc],
+	    '逍': [0xc7, 0xb4, 0x8c],
+	    '逎': [0xc7, 0xb6, 0x48],
+	    '透': [0xc7, 0x4c],
+	    '逐': [0xc3, 0xbc],
+	    '逑': [0xc7, 0x34, 0x4e],
+	    '逓': [0xc7, 0xba],
+	    '途': [0xc7, 0xfc],
+	    '逕': [0xc7, 0x24, 0x9e],
+	    '逖': [0xc7, 0x24, 0xf8],
+	    '逗': [0xc7, 0x20, 0x7c],
+	    '這': [0xc7, 0x6c],
+	    '通': [0xc3, 0x7a],
+	    '逝': [0xc7, 0x7e],
+	    '逞': [0xc7, 0x36, 0xde],
+	    '速': [0xc7, 0xa8],
+	    '造': [0xc3, 0x9a],
+	    '逡': [0xc7, 0x12, 0xfa],
+	    '逢': [0xc7, 0xdc],
+	    '連': [0xc7, 0xfa],
+	    '逧': [0xc7, 0x62, 0x0a],
+	    '逮': [0xc7, 0xd8],
+	    '週': [0xc7, 0x7a],
+	    '進': [0xcf],
+	    '逵': [0xc7, 0xc0, 0xfa],
+	    '逶': [0xc7, 0x54, 0xda],
+	    '逸': [0xc3, 0x2c],
+	    '逹': [0xc7, 0x24, 0x6a],
+	    '逼': [0xc7, 0x24, 0xda],
+	    '逾': [0xc7, 0x24, 0xd8],
+	    '遁': [0xc7, 0xfe],
+	    '遂': [0x05, 0xbc],
+	    '遅': [0xc7, 0x7c],
+	    '遇': [0xc7, 0x9a],
+	    '遉': [0xc7, 0x60, 0x7c],
+	    '遊': [0xc3, 0x48],
+	    '運': [0xc3, 0xfa],
+	    '遍': [0xc7, 0xde],
+	    '過': [0xc7, 0x8a],
+	    '遏': [0xc7, 0x24, 0xb8],
+	    '遐': [0xc7, 0x24, 0x5c],
+	    '遑': [0xc7, 0xc4, 0xde],
+	    '遒': [0xc7, 0xb6, 0x88],
+	    '道': [0xc7, 0x18],
+	    '達': [0xc7, 0x6a],
+	    '違': [0xc7, 0x0e],
+	    '遖': [0xc7, 0x30, 0xee],
+	    '遘': [0xc7, 0x40, 0xfa],
+	    '遜': [0xc7, 0x94, 0x4c],
+	    '遞': [0xc7, 0xc6, 0xba],
+	    '遠': [0xc7, 0x1e],
+	    '遡': [0xc7, 0x22, 0xca],
+	    '遣': [0xc3, 0x2a],
+	    '遥': [0xc7, 0x24, 0x8a],
+	    '遨': [0xc7, 0x40, 0xdc],
+	    '適': [0xc7, 0x1c],
+	    '遭': [0xc7, 0xbc],
+	    '遮': [0xc7, 0x78],
+	    '遯': [0xc7, 0xb4, 0x48],
+	    '遲': [0xc7, 0xc6, 0x7c],
+	    '遵': [0xc7, 0xbe],
+	    '遶': [0xc7, 0x24, 0x7a],
+	    '遷': [0xc3, 0xaa],
+	    '選': [0xc7, 0x9c],
+	    '遺': [0xc7, 0x8e],
+	    '遼': [0xc7, 0x24, 0x3c],
+	    '遽': [0xc7, 0xb2, 0xbc],
+	    '避': [0xc7, 0xea],
+	    '邀': [0xc7, 0xb8],
+	    '邁': [0xc3, 0xea],
+	    '邂': [0xc7, 0xe4, 0xbc],
+	    '邃': [0xc7, 0x12, 0x2e],
+	    '還': [0xc7, 0x3a],
+	    '邇': [0xc7, 0x24, 0xec],
+	    '邉': [0xc7, 0x24, 0x5a],
+	    '邊': [0xc7, 0xc6, 0x5a],
+	    '邏': [0xc7, 0xb2, 0x0e],
+	    '邑': [0xe5, 0xce],
+	    '那': [0x43, 0x24, 0xaa],
+	    '邦': [0xd7, 0xaa],
+	    '邨': [0xa3, 0x30, 0xda],
+	    '邪': [0xf7, 0xaa],
+	    '邯': [0xa3, 0x10, 0x3a],
+	    '邱': [0xa3, 0x92, 0x18],
+	    '邵': [0xa3, 0x52, 0xec],
+	    '邸': [0xf5, 0xaa],
+	    '郁': [0x35, 0xaa],
+	    '郊': [0xa3, 0x6e],
+	    '郎': [0x51, 0xaa],
+	    '郛': [0xa3, 0xb0, 0x1a],
+	    '郡': [0x15, 0xaa],
+	    '郢': [0xa3, 0x36, 0xde],
+	    '郤': [0xa3, 0x62, 0x0a],
+	    '部': [0xe3, 0xaa],
+	    '郭': [0xa3, 0x9c],
+	    '郵': [0xa3, 0x4e],
+	    '郷': [0x45, 0x58],
+	    '都': [0xab],
+	    '鄂': [0xa3, 0x24, 0x9e],
+	    '鄒': [0xa3, 0x24, 0xfc],
+	    '鄙': [0xa3, 0x24, 0xec],
+	    '鄭': [0xa3, 0x24, 0x7e],
+	    '鄰': [0xa3, 0xa2, 0x5c],
+	    '鄲': [0xa3, 0x36, 0x3e],
+	    '酉': [0xb7, 0x48],
+	    '酊': [0xb7, 0xa0, 0x7e],
+	    '酋': [0xb7, 0x88],
+	    '酌': [0xb7, 0x30, 0xfc],
+	    '配': [0xb7, 0x8e],
+	    '酎': [0xb7, 0x30, 0xae],
+	    '酒': [0xb7, 0x4e],
+	    '酔': [0xb7, 0x3c],
+	    '酖': [0xb7, 0xb0, 0xc8],
+	    '酘': [0xb7, 0x24, 0x5c],
+	    '酢': [0xb7, 0xaa],
+	    '酣': [0xb7, 0x10, 0x3a],
+	    '酥': [0xb7, 0xc0, 0x5c],
+	    '酩': [0xb7, 0xd4, 0x3e],
+	    '酪': [0xb7, 0xba],
+	    '酬': [0xb7, 0x8a],
+	    '酲': [0xb7, 0x36, 0xde],
+	    '酳': [0xb7, 0x24, 0x4c],
+	    '酵': [0xb7, 0x9c],
+	    '酷': [0xb7, 0x9a],
+	    '酸': [0xb7, 0x18],
+	    '醂': [0xb7, 0x86, 0x8e],
+	    '醇': [0xb7, 0xc0, 0x9c],
+	    '醉': [0xb7, 0xb6, 0x3c],
+	    '醋': [0xb7, 0xc4, 0x5e],
+	    '醍': [0xb7, 0xc4, 0x78],
+	    '醐': [0xb7, 0x36, 0x3c],
+	    '醒': [0xb7, 0xc4, 0x0e],
+	    '醗': [0xb7, 0x24, 0xba],
+	    '醜': [0xb7, 0x1c],
+	    '醢': [0xb7, 0x30, 0xa8],
+	    '醤': [0xb7, 0xd6, 0x0c],
+	    '醪': [0xb7, 0xf2, 0x0c],
+	    '醫': [0xf5, 0xf4, 0x58],
+	    '醯': [0xb7, 0x24, 0x9a],
+	    '醴': [0xb7, 0xc0, 0x6a],
+	    '醵': [0xb7, 0xb2, 0xbc],
+	    '醸': [0xb7, 0xee],
+	    '醺': [0xb7, 0x92, 0xf8],
+	    '釀': [0xb7, 0xb6, 0xee],
+	    '釁': [0xb7, 0xe4, 0x2e],
+	    '釆': [0x81, 0x80, 0x6e],
+	    '采': [0x81, 0x6e],
+	    '釈': [0x63, 0x5c],
+	    '釉': [0x55, 0x62, 0x18],
+	    '釋': [0x63, 0x62, 0x5c],
+	    '里': [0x31, 0x2e],
+	    '重': [0xc1, 0x2e],
+	    '野': [0x27, 0x78],
+	    '量': [0xc5, 0x2e],
+	    '釐': [0x87, 0x70, 0x2e],
+	    '金': [0x8b],
+	    '釖': [0x83, 0x10, 0x5a],
+	    '釘': [0x83, 0x7e],
+	    '釛': [0x83, 0xc0, 0x5a],
+	    '釜': [0x83, 0x6e],
+	    '針': [0x83, 0x3c],
+	    '釟': [0x83, 0xa0, 0x2e],
+	    '釡': [0x83, 0x24, 0x6e],
+	    '釣': [0x83, 0xfc],
+	    '釦': [0x83, 0x24, 0x3e],
+	    '釧': [0x83, 0x82, 0x0a],
+	    '釵': [0x83, 0x02, 0x6c],
+	    '釶': [0x83, 0x10, 0x6e],
+	    '釼': [0x83, 0x02, 0x5a],
+	    '釿': [0x83, 0x30, 0x68],
+	    '鈍': [0x83, 0xda],
+	    '鈎': [0x83, 0x28],
+	    '鈑': [0x83, 0xc2, 0xe8],
+	    '鈔': [0x83, 0xd4, 0xbc],
+	    '鈕': [0x83, 0x80, 0xbc],
+	    '鈞': [0x83, 0x24, 0xfc],
+	    '鈩': [0x83, 0x24, 0x7c],
+	    '鈬': [0x83, 0x30, 0x6a],
+	    '鈴': [0x83, 0xcc],
+	    '鈷': [0x83, 0x36, 0x3c],
+	    '鈿': [0x83, 0xc0, 0x6a],
+	    '鉄': [0x83, 0x9e],
+	    '鉅': [0x83, 0x02, 0xba],
+	    '鉈': [0x83, 0x24, 0xce],
+	    '鉉': [0x83, 0xc0, 0x4c],
+	    '鉋': [0x83, 0xf4, 0x0c],
+	    '鉐': [0x83, 0xc0, 0xea],
+	    '鉗': [0x83, 0x10, 0x3a],
+	    '鉚': [0x83, 0x24, 0xaa],
+	    '鉛': [0x83, 0x1e],
+	    '鉞': [0x83, 0xc0, 0xce],
+	    '鉢': [0x83, 0x88],
+	    '鉤': [0x83, 0xf4, 0x28],
+	    '鉦': [0x83, 0xe0, 0x0e],
+	    '鉱': [0x83, 0x9c],
+	    '鉾': [0x83, 0xfa],
+	    '銀': [0x83, 0x58],
+	    '銃': [0x83, 0xc8],
+	    '銅': [0x83, 0x7c],
+	    '銑': [0x83, 0x7a],
+	    '銓': [0x83, 0x26, 0xde],
+	    '銕': [0x83, 0xd0, 0x4a],
+	    '銖': [0x83, 0x20, 0x8a],
+	    '銘': [0x83, 0x3e],
+	    '銚': [0x83, 0xa0, 0x2c],
+	    '銛': [0x83, 0x36, 0xbe],
+	    '銜': [0x83, 0xc0, 0xd8],
+	    '銭': [0x83, 0xec],
+	    '銷': [0x83, 0xb4, 0x8c],
+	    '銹': [0x83, 0x54, 0x4c],
+	    '鋏': [0x83, 0x24, 0x4a],
+	    '鋒': [0x83, 0xdc],
+	    '鋤': [0x83, 0x52, 0xbc],
+	    '鋩': [0x83, 0x20, 0xdc],
+	    '鋪': [0x83, 0x24, 0xdc],
+	    '鋭': [0x83, 0x2c],
+	    '鋲': [0x83, 0x92, 0x2e],
+	    '鋳': [0x83, 0xae],
+	    '鋸': [0x83, 0x74, 0x0a],
+	    '鋺': [0x83, 0x24, 0x1a],
+	    '鋼': [0x83, 0xd8],
+	    '錆': [0x83, 0xbe],
+	    '錏': [0x83, 0x02, 0x0a],
+	    '錐': [0x83, 0x0e],
+	    '錘': [0x83, 0x4e],
+	    '錙': [0x83, 0x22, 0x6a],
+	    '錚': [0x83, 0xb4, 0x2c],
+	    '錠': [0x83, 0x78],
+	    '錢': [0x83, 0x82, 0xec],
+	    '錣': [0x83, 0x24, 0x6c],
+	    '錦': [0x83, 0x24, 0xfe],
+	    '錨': [0x83, 0x9a],
+	    '錫': [0x83, 0xa8],
+	    '錬': [0x83, 0xce],
+	    '錮': [0x83, 0xe4, 0x3c],
+	    '錯': [0x83, 0x5e],
+	    '録': [0x83, 0xee],
+	    '錵': [0x83, 0x92, 0x38],
+	    '錺': [0x83, 0x92, 0xdc],
+	    '錻': [0x83, 0xe4, 0xe8],
+	    '鍄': [0x83, 0xc0, 0x3e],
+	    '鍋': [0x83, 0x24, 0x8a],
+	    '鍍': [0x83, 0x70, 0x6c],
+	    '鍔': [0x83, 0x24, 0x9e],
+	    '鍖': [0x83, 0x02, 0x8e],
+	    '鍛': [0x83, 0x5c],
+	    '鍜': [0x83, 0xc0, 0x5c],
+	    '鍠': [0x83, 0xc4, 0xde],
+	    '鍬': [0x83, 0x54, 0xf8],
+	    '鍮': [0x83, 0x24, 0xd8],
+	    '鍵': [0x83, 0xca],
+	    '鍼': [0x83, 0xc6, 0x48],
+	    '鍾': [0x83, 0xc0, 0x2e],
+	    '鎌': [0x83, 0xea],
+	    '鎔': [0x83, 0x12, 0x6a],
+	    '鎖': [0x83, 0x68],
+	    '鎗': [0x83, 0x26, 0x1c],
+	    '鎚': [0x83, 0xc6, 0x2a],
+	    '鎧': [0x83, 0x24, 0x58],
+	    '鎬': [0x83, 0x30, 0x1e],
+	    '鎭': [0x83, 0x82, 0xfe],
+	    '鎮': [0x83, 0xfe],
+	    '鎰': [0x83, 0x26, 0x8c],
+	    '鎹': [0x83, 0xc6, 0x9e],
+	    '鏃': [0x83, 0xd4, 0x58],
+	    '鏈': [0x83, 0xc6, 0xfa],
+	    '鏐': [0x83, 0xf2, 0x0c],
+	    '鏑': [0x83, 0x24, 0x1c],
+	    '鏖': [0x83, 0xb4, 0x38],
+	    '鏗': [0x83, 0x72, 0xba],
+	    '鏘': [0x83, 0xd6, 0x0c],
+	    '鏝': [0x83, 0x24, 0xea],
+	    '鏡': [0x83, 0x4a],
+	    '鏤': [0x83, 0x24, 0x3a],
+	    '鏥': [0x83, 0x24, 0x2c],
+	    '鏨': [0x83, 0xf2, 0x68],
+	    '鐃': [0x83, 0x24, 0x7a],
+	    '鐇': [0x83, 0x54, 0x6a],
+	    '鐐': [0x83, 0x24, 0x3c],
+	    '鐓': [0x83, 0x24, 0xb8],
+	    '鐔': [0x83, 0xc4, 0x3c],
+	    '鐘': [0x83, 0x2e],
+	    '鐙': [0x83, 0xb2, 0x7c],
+	    '鐚': [0x83, 0x02, 0xac],
+	    '鐡': [0x83, 0x12, 0x9e],
+	    '鐫': [0x83, 0x24, 0x0e],
+	    '鐵': [0x83, 0x82, 0x9e],
+	    '鐶': [0x83, 0xc0, 0x3a],
+	    '鐸': [0x83, 0x24, 0x6a],
+	    '鐺': [0x83, 0xc0, 0xda],
+	    '鑁': [0x83, 0xb2, 0x18],
+	    '鑄': [0x83, 0x82, 0xae],
+	    '鑑': [0x83, 0x8c],
+	    '鑒': [0x83, 0x82, 0x8c],
+	    '鑓': [0x83, 0xc2, 0x2a],
+	    '鑚': [0x83, 0x60, 0x9e],
+	    '鑛': [0x83, 0x82, 0x9c],
+	    '鑞': [0x83, 0xc0, 0x3c],
+	    '鑠': [0x83, 0xc4, 0x4c],
+	    '鑢': [0x83, 0xb2, 0xac],
+	    '鑪': [0x83, 0x24, 0xba],
+	    '鑰': [0x83, 0x24, 0x2e],
+	    '鑵': [0x83, 0xc0, 0x9e],
+	    '鑷': [0x83, 0x24, 0xee],
+	    '鑼': [0x83, 0xb2, 0x0e],
+	    '鑽': [0x83, 0x24, 0x68],
+	    '鑾': [0x83, 0x24, 0x1e],
+	    '鑿': [0x83, 0x24, 0x5c],
+	    '钁': [0x83, 0xf6, 0xfe],
+	    '長': [0x11, 0x7c],
+	    '門': [0xfd],
+	    '閂': [0xf5, 0x24, 0x2c],
+	    '閃': [0xf5, 0x4a],
+	    '閇': [0xf5, 0x30, 0xc8],
+	    '閉': [0xf5, 0x3c],
+	    '閊': [0xf5, 0x50, 0x0a],
+	    '開': [0xf5, 0x7c],
+	    '閏': [0xf5, 0xde],
+	    '閑': [0xf5, 0x8e],
+	    '間': [0xf5, 0xcc],
+	    '閔': [0xf5, 0xc0, 0x48],
+	    '閖': [0xf5, 0x24, 0x4e],
+	    '閘': [0xf5, 0x24, 0x9c],
+	    '閙': [0xf5, 0xc0, 0xae],
+	    '閠': [0xf5, 0x12, 0xde],
+	    '関': [0xf5, 0x9e],
+	    '閣': [0xf5, 0xba],
+	    '閤': [0xf5, 0x26, 0xec],
+	    '閥': [0xf5, 0xec],
+	    '閧': [0xf5, 0x9c],
+	    '閨': [0xf5, 0x7a],
+	    '閭': [0xf5, 0x80, 0xee],
+	    '閲': [0xf5, 0x2c],
+	    '閹': [0xf5, 0x80, 0xac],
+	    '閻': [0xf5, 0x24, 0x5a],
+	    '閼': [0xf5, 0xd4, 0xc8],
+	    '閾': [0xf5, 0xe4, 0x18],
+	    '闃': [0xf5, 0xf6, 0x9e],
+	    '闇': [0xf5, 0xea],
+	    '闊': [0xf5, 0x36, 0xbe],
+	    '闌': [0xf5, 0x24, 0xce],
+	    '闍': [0xf5, 0x74, 0xcc],
+	    '闔': [0xf5, 0x72, 0x9c],
+	    '闕': [0xf5, 0xe0, 0x0a],
+	    '闖': [0xf5, 0x24, 0xbc],
+	    '闘': [0xf5, 0xae],
+	    '關': [0xf5, 0xf4, 0x9e],
+	    '闡': [0xf5, 0x36, 0x3e],
+	    '闢': [0xf5, 0x24, 0xea],
+	    '闥': [0xf5, 0xc6, 0x6a],
+	    '阜': [0xa3, 0xda],
+	    '阡': [0xa3, 0xa0, 0xbe],
+	    '阨': [0xa3, 0x70, 0xaa],
+	    '阪': [0xa3, 0xe8],
+	    '阮': [0xa3, 0x02, 0x2c],
+	    '阯': [0xa3, 0x24, 0xe8],
+	    '防': [0xa3, 0xdc],
+	    '阻': [0xa3, 0xbc],
+	    '阿': [0xa3, 0x8a],
+	    '陀': [0xa3, 0x24, 0xce],
+	    '陂': [0xa3, 0x10, 0xce],
+	    '附': [0xa3, 0xae],
+	    '陋': [0xa3, 0xa0, 0xde],
+	    '陌': [0xa3, 0xa0, 0xfe],
+	    '降': [0xa3, 0x0e],
+	    '陏': [0xa3, 0x34, 0x2a],
+	    '限': [0xa3, 0x58],
+	    '陛': [0xa3, 0x7a],
+	    '陜': [0xa3, 0x24, 0x4a],
+	    '陝': [0xa3, 0xc0, 0x4a],
+	    '陞': [0xa3, 0xc4, 0x9a],
+	    '陟': [0xa3, 0xe0, 0xbc],
+	    '院': [0xa3, 0x2c],
+	    '陣': [0xa3, 0xfa],
+	    '除': [0xa3, 0xfc],
+	    '陥': [0xa3, 0x5a],
+	    '陦': [0xa3, 0xd6, 0xae],
+	    '陪': [0xa3, 0xea],
+	    '陬': [0xa3, 0xe6, 0x6c],
+	    '陰': [0xa3, 0x6c],
+	    '陲': [0xa3, 0x24, 0x4e],
+	    '陳': [0xa3, 0xce],
+	    '陵': [0xa3, 0xba],
+	    '陶': [0xa3, 0x7c],
+	    '陷': [0xa3, 0xa2, 0x5a],
+	    '陸': [0xa3, 0x0a],
+	    '険': [0xa3, 0x2e],
+	    '陽': [0xa3, 0xa8],
+	    '隅': [0xa3, 0x9a],
+	    '隆': [0xa3, 0xbe],
+	    '隈': [0xa3, 0x6a],
+	    '隊': [0xb5, 0xaa],
+	    '隋': [0xa3, 0x24, 0x2a],
+	    '隍': [0xa3, 0xc4, 0xde],
+	    '階': [0xa3, 0xcc],
+	    '随': [0xa3, 0x2a],
+	    '隔': [0xa3, 0x3e],
+	    '隕': [0xa3, 0x60, 0x3e],
+	    '隗': [0xa3, 0x14, 0x4e],
+	    '隘': [0xa3, 0x8c],
+	    '隙': [0xa3, 0x30, 0xbc],
+	    '際': [0xa3, 0xaa],
+	    '障': [0xa3, 0x3c],
+	    '隠': [0xa3, 0x3a],
+	    '隣': [0xa3, 0x5c],
+	    '隧': [0xa3, 0x04, 0xbc],
+	    '隨': [0xa3, 0xa2, 0x2a],
+	    '險': [0xa3, 0xa2, 0x2e],
+	    '隰': [0xa3, 0x24, 0x0e],
+	    '隱': [0xa3, 0xa2, 0x3a],
+	    '隲': [0xa3, 0x24, 0xbc],
+	    '隴': [0xa3, 0xe2, 0xac],
+	    '隶': [0x11, 0x10, 0xd8],
+	    '隷': [0x57, 0xd8],
+	    '隸': [0x57, 0x56, 0xd8],
+	    '隹': [0x11, 0x10, 0x0e],
+	    '隻': [0x07, 0x6c],
+	    '隼': [0x07, 0x24, 0x3c],
+	    '雀': [0xd5, 0x0e],
+	    '雁': [0x43, 0x24, 0xbe],
+	    '雄': [0x35, 0x0e],
+	    '雅': [0xf7, 0x0e],
+	    '集': [0x87, 0x0e],
+	    '雇': [0x75, 0x0e],
+	    '雉': [0x51, 0x24, 0xbe],
+	    '雋': [0x07, 0x30, 0xec],
+	    '雌': [0x31, 0x0e],
+	    '雍': [0x03, 0xce],
+	    '雎': [0xf7, 0x24, 0x0e],
+	    '雑': [0xc1, 0x0e],
+	    '雕': [0xe5, 0x10, 0x0e],
+	    '雖': [0xf3, 0x0e],
+	    '雙': [0x65, 0x64, 0x6c],
+	    '雛': [0xf5, 0x0e],
+	    '雜': [0xc1, 0xc0, 0x0e],
+	    '離': [0x11, 0x0e],
+	    '難': [0x93, 0x0e],
+	    '雨': [0x67, 0x0a],
+	    '雪': [0x67, 0xbe],
+	    '雫': [0x67, 0x30, 0xc8],
+	    '雰': [0x67, 0x2e],
+	    '雲': [0x67, 0x1e],
+	    '零': [0x67, 0xe8],
+	    '雷': [0x67, 0x6a],
+	    '雹': [0x67, 0xfc],
+	    '電': [0x67, 0xac],
+	    '需': [0x67, 0x5c],
+	    '霄': [0x67, 0xb4, 0x8c],
+	    '霆': [0x67, 0xc2, 0xde],
+	    '震': [0x67, 0x3c],
+	    '霈': [0x67, 0x24, 0xae],
+	    '霊': [0x67, 0x98],
+	    '霍': [0x67, 0x10, 0x0e],
+	    '霎': [0x67, 0xd2, 0xea],
+	    '霏': [0x67, 0x10, 0xf8],
+	    '霑': [0x67, 0x24, 0x4e],
+	    '霓': [0x67, 0x94, 0x2c],
+	    '霖': [0x67, 0x86, 0x8e],
+	    '霙': [0x67, 0x92, 0x1c],
+	    '霜': [0x67, 0x8e],
+	    '霞': [0x67, 0x24, 0x5c],
+	    '霤': [0x67, 0x22, 0x6a],
+	    '霧': [0x67, 0x78],
+	    '霪': [0x67, 0xb0, 0x4e],
+	    '霰': [0x67, 0xb8],
+	    '露': [0x67, 0xee],
+	    '霸': [0x67, 0x24, 0x2a],
+	    '霹': [0x67, 0x24, 0xea],
+	    '霽': [0x67, 0xa2, 0xc8],
+	    '霾': [0x67, 0x30, 0x2e],
+	    '靂': [0x67, 0x94, 0xe8],
+	    '靄': [0x67, 0x24, 0xb8],
+	    '靆': [0x67, 0xc6, 0xd8],
+	    '靈': [0x67, 0x66, 0x98],
+	    '靉': [0x67, 0xc0, 0x0a],
+	    '青': [0xa7, 0xbe],
+	    '靖': [0xe3, 0xbe],
+	    '静': [0xb7, 0x2c],
+	    '靜': [0xb7, 0xb6, 0x2c],
+	    '非': [0x11, 0xf8],
+	    '靠': [0xf1, 0x94, 0x9a],
+	    '靡': [0xe3, 0x24, 0xf8],
+	    '面': [0xf7, 0x18],
+	    '靤': [0xf7, 0xf4, 0x0c],
+	    '靦': [0xf7, 0xf6, 0x2c],
+	    '靨': [0x71, 0xf6, 0x18],
+	    '革': [0x75, 0x3c],
+	    '靫': [0x75, 0x02, 0x6c],
+	    '靭': [0x75, 0x02, 0x5a],
+	    '靱': [0x75, 0x5a],
+	    '靴': [0x75, 0x90, 0x38],
+	    '靹': [0x75, 0xe4, 0x98],
+	    '靺': [0x75, 0x86, 0x28],
+	    '靼': [0x75, 0x10, 0xcc],
+	    '鞁': [0x75, 0x10, 0xce],
+	    '鞄': [0x75, 0xf4, 0x0c],
+	    '鞅': [0x75, 0x96, 0x1c],
+	    '鞆': [0x75, 0xa0, 0xde],
+	    '鞋': [0x75, 0x24, 0x7a],
+	    '鞍': [0x75, 0xda],
+	    '鞏': [0xc1, 0x74, 0x3c],
+	    '鞐': [0x75, 0x12, 0xc8],
+	    '鞘': [0x75, 0xb4, 0x8c],
+	    '鞜': [0x75, 0xe6, 0x4e],
+	    '鞠': [0x75, 0xa4, 0x0c],
+	    '鞣': [0x75, 0x86, 0x78],
+	    '鞦': [0x75, 0x54, 0xf8],
+	    '鞨': [0x75, 0x24, 0xb8],
+	    '鞫': [0x17, 0x74, 0x3c],
+	    '鞭': [0x75, 0x90, 0x4a],
+	    '鞳': [0x75, 0x26, 0xec],
+	    '鞴': [0x75, 0x24, 0xce],
+	    '韃': [0x75, 0xc6, 0x6a],
+	    '韆': [0x75, 0xc2, 0xaa],
+	    '韈': [0x75, 0xb2, 0xce],
+	    '韋': [0x05, 0x0e],
+	    '韓': [0x35, 0x24, 0x0e],
+	    '韜': [0x07, 0x24, 0x5a],
+	    '韭': [0xc1, 0x10, 0xf8],
+	    '韮': [0xa5, 0x12, 0xf8],
+	    '韲': [0xa3, 0xc0, 0xf8],
+	    '音': [0xe3, 0xcc],
+	    '韵': [0xe3, 0x24, 0xfc],
+	    '韶': [0xe3, 0x52, 0xec],
+	    '韻': [0xe3, 0x3e],
+	    '響': [0x45, 0xea],
+	    '頁': [0x1d],
+	    '頂': [0x15, 0x7e],
+	    '頃': [0xc5, 0x68],
+	    '項': [0x95, 0x1c],
+	    '順': [0x15, 0x8a],
+	    '須': [0x13, 0xba],
+	    '頌': [0x15, 0x80, 0x9c],
+	    '頏': [0x15, 0x24, 0x2c],
+	    '預': [0x15, 0x78],
+	    '頑': [0x25, 0x1c],
+	    '頒': [0x15, 0x2e],
+	    '頓': [0x15, 0xda],
+	    '頗': [0x15, 0xce],
+	    '領': [0x91, 0x1c],
+	    '頚': [0x15, 0x9e],
+	    '頡': [0x15, 0x72, 0x3e],
+	    '頤': [0x15, 0x24, 0xba],
+	    '頬': [0x15, 0x4a],
+	    '頭': [0x15, 0x7c],
+	    '頴': [0x57, 0x24, 0x1c],
+	    '頷': [0xe5, 0x1c],
+	    '頸': [0x15, 0xc0, 0x9e],
+	    '頻': [0xe1, 0x1c],
+	    '頼': [0x15, 0xa8],
+	    '頽': [0x15, 0xc8],
+	    '顆': [0x15, 0x62, 0x8e],
+	    '顋': [0x15, 0x62, 0xac],
+	    '題': [0x15, 0xcc],
+	    '額': [0x37, 0x1c],
+	    '顎': [0x15, 0x3e],
+	    '顏': [0x15, 0x14, 0x1a],
+	    '顔': [0x15, 0x1a],
+	    '顕': [0x15, 0x4c],
+	    '願': [0x71, 0x1c],
+	    '顛': [0xf7, 0x1c],
+	    '類': [0x15, 0x5c],
+	    '顧': [0x75, 0x1c],
+	    '顫': [0x15, 0xe4, 0x3e],
+	    '顯': [0x15, 0x14, 0x4c],
+	    '顰': [0x15, 0x6a],
+	    '顱': [0x15, 0x14, 0x7c],
+	    '顳': [0x15, 0x24, 0xee],
+	    '顴': [0x15, 0x24, 0x9e],
+	    '風': [0xf3, 0x2c],
+	    '颪': [0xc1, 0xf2, 0x2c],
+	    '颯': [0xe3, 0xf2, 0x2c],
+	    '颱': [0xf3, 0x4a],
+	    '颶': [0xf3, 0x60, 0x28],
+	    '飃': [0xf3, 0x24, 0x4e],
+	    '飄': [0xf3, 0x46, 0x5e],
+	    '飆': [0xf3, 0x24, 0x9e],
+	    '飛': [0x35, 0xce],
+	    '飜': [0x63, 0x62, 0xfa],
+	    '食': [0xbf],
+	    '飢': [0xb7, 0xc8],
+	    '飩': [0xb7, 0x30, 0xda],
+	    '飫': [0xb7, 0xc0, 0x9e],
+	    '飭': [0x53, 0x24, 0xbe],
+	    '飮': [0xe1, 0xe0, 0xbe],
+	    '飯': [0xb7, 0xe8],
+	    '飲': [0xe1, 0xbe],
+	    '飴': [0xb7, 0x4a],
+	    '飼': [0xb7, 0x98],
+	    '飽': [0xb7, 0xfc],
+	    '飾': [0xb7, 0xda],
+	    '餃': [0xb7, 0x24, 0x6e],
+	    '餅': [0xb7, 0x7c],
+	    '餉': [0xb7, 0xe4, 0x9c],
+	    '養': [0xb5, 0x58],
+	    '餌': [0xb7, 0x1e],
+	    '餐': [0xb7, 0x6c],
+	    '餒': [0xb7, 0xd2, 0xc8],
+	    '餓': [0xb7, 0xec],
+	    '餔': [0xb7, 0xc0, 0xdc],
+	    '餘': [0x27, 0x26, 0xfc],
+	    '餝': [0xb7, 0x92, 0xdc],
+	    '餞': [0xb7, 0x24, 0xec],
+	    '餠': [0xb7, 0xb6, 0x7c],
+	    '餡': [0xb7, 0x24, 0x5a],
+	    '餤': [0xb7, 0x24, 0xf8],
+	    '館': [0xb7, 0x2a],
+	    '餬': [0xb7, 0x80, 0x2a],
+	    '餮': [0xb7, 0x24, 0x1a],
+	    '餽': [0xb7, 0x14, 0x4e],
+	    '餾': [0xb7, 0xc0, 0x2a],
+	    '饂': [0xb7, 0x24, 0x8c],
+	    '饅': [0xb7, 0xc0, 0xea],
+	    '饉': [0xb7, 0x24, 0x8e],
+	    '饋': [0xb7, 0x60, 0x8e],
+	    '饌': [0xb7, 0x24, 0x9c],
+	    '饐': [0xb7, 0x32, 0x0a],
+	    '饑': [0xb7, 0x44, 0xec],
+	    '饒': [0xb7, 0x24, 0x7a],
+	    '饕': [0xb7, 0x36, 0xba],
+	    '饗': [0xb7, 0x4c],
+	    '首': [0x15, 0x18],
+	    '馗': [0xc7, 0xa0, 0x1c],
+	    '馘': [0xe5, 0x14, 0x18],
+	    '香': [0x55, 0xcc],
+	    '馥': [0xb3, 0x54, 0xcc],
+	    '馨': [0xe7, 0x54, 0xcc],
+	    '馬': [0xbd],
+	    '馭': [0xb5, 0x24, 0x6c],
+	    '馮': [0xb1, 0x12, 0xbc],
+	    '馳': [0xb5, 0x6e],
+	    '馴': [0xb5, 0x9a],
+	    '馼': [0xb5, 0xc0, 0x48],
+	    '駁': [0xb5, 0x6c],
+	    '駄': [0x97, 0xbc],
+	    '駅': [0xb5, 0x6a],
+	    '駆': [0xb5, 0xfc],
+	    '駈': [0xb5, 0x92, 0x18],
+	    '駐': [0xb5, 0xde],
+	    '駑': [0xb5, 0xd2, 0x6c],
+	    '駒': [0xb5, 0x28],
+	    '駕': [0xb5, 0x52, 0x3e],
+	    '駘': [0xb5, 0x10, 0x4a],
+	    '駛': [0xb5, 0x36, 0x4a],
+	    '駝': [0xb5, 0x24, 0xce],
+	    '駟': [0xb5, 0xa0, 0x3a],
+	    '駢': [0xb5, 0xc0, 0x7c],
+	    '駭': [0xb5, 0x20, 0x4c],
+	    '駮': [0xb5, 0xc0, 0x6e],
+	    '駱': [0xb5, 0xb2, 0x3e],
+	    '駲': [0xb5, 0x82, 0x18],
+	    '駸': [0xb5, 0x1e],
+	    '駻': [0xb5, 0x24, 0x8a],
+	    '駿': [0xb5, 0x24, 0xfa],
+	    '騁': [0xb5, 0x62, 0x18],
+	    '騅': [0xb5, 0x24, 0x0e],
+	    '騎': [0xb5, 0x8a],
+	    '騏': [0xb5, 0x10, 0x8e],
+	    '騒': [0xb5, 0xfa],
+	    '験': [0xb5, 0x2e],
+	    '騙': [0xb5, 0x24, 0xde],
+	    '騨': [0xb5, 0x36, 0x3e],
+	    '騫': [0x13, 0x24, 0xbc],
+	    '騰': [0x23, 0xbc],
+	    '騷': [0xb5, 0xb4, 0xfa],
+	    '騾': [0xb5, 0x62, 0x4c],
+	    '驀': [0xb5, 0x24, 0x9a],
+	    '驂': [0xb5, 0x02, 0x1a],
+	    '驃': [0xb5, 0x46, 0x5e],
+	    '驅': [0xb5, 0xb4, 0xfc],
+	    '驍': [0xb5, 0x24, 0x7a],
+	    '驕': [0xb5, 0x24, 0x5c],
+	    '驗': [0xb5, 0xb4, 0x2e],
+	    '驚': [0xf5, 0xbc],
+	    '驛': [0xb5, 0xb4, 0x6a],
+	    '驟': [0xb5, 0xe6, 0x6c],
+	    '驢': [0xb5, 0x24, 0x6a],
+	    '驤': [0xb5, 0x24, 0xee],
+	    '驥': [0xb5, 0x24, 0x8e],
+	    '驩': [0xb5, 0x24, 0x9e],
+	    '驪': [0xb5, 0xe4, 0x38],
+	    '驫': [0xb5, 0x12, 0xbc],
+	    '骨': [0x83, 0x2a],
+	    '骭': [0x83, 0x82, 0x2a],
+	    '骰': [0x55, 0x82, 0x2a],
+	    '骸': [0x83, 0x4c],
+	    '骼': [0x83, 0xb2, 0x3e],
+	    '髀': [0x83, 0x62, 0xaa],
+	    '髄': [0x85, 0x2a],
+	    '髏': [0xa1, 0x82, 0x2a],
+	    '髑': [0xf3, 0x82, 0x2a],
+	    '髓': [0x85, 0x24, 0x2a],
+	    '體': [0x43, 0x42, 0x88],
+	    '高': [0x31, 0x1e],
+	    '髞': [0x13, 0x30, 0x1e],
+	    '髟': [0x03, 0x7c],
+	    '髢': [0x75, 0x10, 0x6e],
+	    '髣': [0x75, 0x24, 0xdc],
+	    '髦': [0xb7, 0x74, 0x1a],
+	    '髪': [0x75, 0x1a],
+	    '髫': [0x75, 0x52, 0xec],
+	    '髭': [0x75, 0x24, 0x3e],
+	    '髮': [0x75, 0x74, 0x1a],
+	    '髯': [0x75, 0x2c],
+	    '髱': [0xf5, 0x74, 0x1a],
+	    '髴': [0x75, 0x80, 0xfe],
+	    '髷': [0x75, 0x62, 0x28],
+	    '髻': [0x75, 0x72, 0x3e],
+	    '鬆': [0x75, 0xa4, 0x9c],
+	    '鬘': [0x75, 0x12, 0xea],
+	    '鬚': [0x75, 0x12, 0xba],
+	    '鬟': [0x75, 0x12, 0x3a],
+	    '鬢': [0x75, 0xc8],
+	    '鬣': [0x75, 0x96, 0x28],
+	    '鬥': [0x21, 0xfc],
+	    '鬧': [0xf5, 0x12, 0xae],
+	    '鬨': [0xf5, 0xf4, 0x9c],
+	    '鬩': [0xf5, 0x94, 0x2c],
+	    '鬪': [0xf5, 0xf4, 0xae],
+	    '鬮': [0xf5, 0x30, 0xfe],
+	    '鬯': [0x81, 0x80, 0x58],
+	    '鬱': [0xb3, 0xb2, 0xae],
+	    '鬲': [0x81, 0x3e],
+	    '鬻': [0xd1, 0x24, 0x3e],
+	    '鬼': [0x15, 0x4e],
+	    '魁': [0x15, 0x24, 0x7c],
+	    '魂': [0x17, 0x4e],
+	    '魃': [0x15, 0x6c],
+	    '魄': [0xc5, 0x14, 0x4e],
+	    '魅': [0x15, 0x8e],
+	    '魍': [0x15, 0x24, 0xd8],
+	    '魎': [0x15, 0x66, 0x18],
+	    '魏': [0x55, 0x14, 0x4e],
+	    '魑': [0x15, 0x10, 0x0e],
+	    '魔': [0x71, 0x4e],
+	    '魘': [0x71, 0x14, 0x4e],
+	    '魚': [0xb7, 0x0c],
+	    '魯': [0xb7, 0xcc],
+	    '魴': [0xb7, 0x24, 0xdc],
+	    '鮃': [0xb7, 0x26, 0x8a],
+	    '鮎': [0xb7, 0x36, 0x7c],
+	    '鮑': [0xb7, 0xf4, 0x0c],
+	    '鮒': [0xb7, 0x42, 0xae],
+	    '鮓': [0xb7, 0x24, 0xaa],
+	    '鮖': [0xb7, 0x12, 0xea],
+	    '鮗': [0xb7, 0xb2, 0x0a],
+	    '鮟': [0xb7, 0x12, 0xda],
+	    '鮠': [0xb7, 0x92, 0xaa],
+	    '鮨': [0xb7, 0x24, 0x4e],
+	    '鮪': [0xb7, 0x34, 0x2a],
+	    '鮫': [0xb7, 0xc0, 0x6e],
+	    '鮭': [0xb7, 0x7a],
+	    '鮮': [0xb7, 0xbc],
+	    '鮴': [0xb7, 0x42, 0x8e],
+	    '鮹': [0xb7, 0xb4, 0x8c],
+	    '鯀': [0xb7, 0xc0, 0x4c],
+	    '鯆': [0xb7, 0x80, 0xdc],
+	    '鯉': [0xb7, 0x2e],
+	    '鯊': [0xb7, 0xb0, 0xdc],
+	    '鯏': [0xb7, 0x54, 0x5a],
+	    '鯑': [0xb7, 0xf6, 0xae],
+	    '鯒': [0xb7, 0xc0, 0x7a],
+	    '鯔': [0xb7, 0x22, 0x6a],
+	    '鯖': [0xb7, 0xa6, 0xbe],
+	    '鯛': [0xb7, 0x6a],
+	    '鯡': [0xb7, 0x10, 0xf8],
+	    '鯢': [0xb7, 0x94, 0x2c],
+	    '鯣': [0xb7, 0xc4, 0xa8],
+	    '鯤': [0xb7, 0xc4, 0x38],
+	    '鯨': [0xb7, 0x3e],
+	    '鯰': [0xb7, 0x26, 0xac],
+	    '鯱': [0xb7, 0xb2, 0x48],
+	    '鯲': [0xb7, 0xd4, 0xc8],
+	    '鯵': [0xb7, 0x02, 0x1a],
+	    '鰄': [0xb7, 0xc6, 0xda],
+	    '鰆': [0xb7, 0x96, 0xcc],
+	    '鰈': [0xb7, 0x24, 0x78],
+	    '鰉': [0xb7, 0xc4, 0xde],
+	    '鰊': [0xb7, 0x30, 0xce],
+	    '鰌': [0xb7, 0xb6, 0x88],
+	    '鰍': [0xb7, 0x54, 0xf8],
+	    '鰐': [0xb7, 0x9e],
+	    '鰒': [0xb7, 0xc0, 0xba],
+	    '鰓': [0xb7, 0x62, 0xac],
+	    '鰔': [0xb7, 0xc6, 0x48],
+	    '鰕': [0xb7, 0x12, 0x5c],
+	    '鰛': [0xb7, 0xc0, 0x8c],
+	    '鰡': [0xb7, 0x12, 0x2a],
+	    '鰤': [0xb7, 0xa6, 0x2a],
+	    '鰥': [0xb7, 0x84, 0xbc],
+	    '鰭': [0xb7, 0x24, 0x7c],
+	    '鰮': [0xb7, 0x12, 0x8c],
+	    '鰯': [0xb7, 0xd0, 0xd8],
+	    '鰰': [0xb7, 0x56, 0xae],
+	    '鰲': [0xb7, 0x40, 0xdc],
+	    '鰹': [0xb7, 0x72, 0xba],
+	    '鰺': [0xb7, 0x12, 0x1a],
+	    '鰻': [0xb7, 0x24, 0xea],
+	    '鰾': [0xb7, 0x46, 0x5e],
+	    '鱆': [0xb7, 0xe2, 0x3c],
+	    '鱇': [0xb7, 0x70, 0xd8],
+	    '鱈': [0xb7, 0x66, 0xbe],
+	    '鱒': [0xb7, 0xb6, 0xae],
+	    '鱗': [0xb7, 0x5c],
+	    '鱚': [0xb7, 0x72, 0xec],
+	    '鱠': [0xb7, 0x26, 0x1e],
+	    '鱧': [0xb7, 0x62, 0x7c],
+	    '鱶': [0xb7, 0xb4, 0x58],
+	    '鱸': [0xb7, 0x24, 0x6a],
+	    '鳥': [0xb7, 0x0a],
+	    '鳧': [0xc1, 0x12, 0xbe],
+	    '鳩': [0x15, 0xbe],
+	    '鳫': [0x11, 0xb6, 0x0a],
+	    '鳬': [0x25, 0xb6, 0x0a],
+	    '鳰': [0x43, 0xc0, 0xbe],
+	    '鳳': [0xf3, 0x24, 0xbe],
+	    '鳴': [0xe5, 0xbe],
+	    '鳶': [0x75, 0x24, 0xbe],
+	    '鴃': [0x77, 0x24, 0xbe],
+	    '鴆': [0xb1, 0x24, 0xbe],
+	    '鴇': [0x35, 0xc0, 0xbe],
+	    '鴈': [0x71, 0xc0, 0xbe],
+	    '鴉': [0xf7, 0x24, 0xbe],
+	    '鴎': [0xf5, 0xbe],
+	    '鴒': [0x35, 0x24, 0xbe],
+	    '鴕': [0xc7, 0xc0, 0xbe],
+	    '鴛': [0xa3, 0x24, 0xbe],
+	    '鴟': [0xe1, 0x24, 0xbe],
+	    '鴣': [0x37, 0xc0, 0xbe],
+	    '鴦': [0x15, 0x24, 0xbe],
+	    '鴨': [0x95, 0xbe],
+	    '鴪': [0x13, 0x24, 0xbe],
+	    '鴫': [0x63, 0x24, 0xbe],
+	    '鴬': [0xf1, 0xbe],
+	    '鴻': [0x47, 0x24, 0xbe],
+	    '鴾': [0xf3, 0xc0, 0xbe],
+	    '鴿': [0x27, 0xc0, 0xbe],
+	    '鵁': [0x67, 0x24, 0xbe],
+	    '鵄': [0xd1, 0xc0, 0xbe],
+	    '鵆': [0xd1, 0x12, 0xbe],
+	    '鵈': [0xe7, 0xc0, 0xbe],
+	    '鵐': [0xd3, 0x24, 0xbe],
+	    '鵑': [0x23, 0x24, 0xbe],
+	    '鵙': [0x61, 0xc0, 0xbe],
+	    '鵜': [0xd1, 0x24, 0xbe],
+	    '鵝': [0xe5, 0x02, 0xbe],
+	    '鵞': [0xe5, 0x24, 0xbe],
+	    '鵠': [0x93, 0x24, 0xbe],
+	    '鵡': [0xe5, 0xc0, 0xbe],
+	    '鵤': [0xe5, 0x12, 0xbe],
+	    '鵬': [0x23, 0xbe],
+	    '鵯': [0x63, 0xbe],
+	    '鵲': [0x57, 0x24, 0xbe],
+	    '鵺': [0xc1, 0xc0, 0xbe],
+	    '鶇': [0xc7, 0x12, 0xbe],
+	    '鶉': [0xc1, 0x24, 0xbe],
+	    '鶏': [0x45, 0xbe],
+	    '鶚': [0x97, 0xc0, 0xbe],
+	    '鶤': [0x25, 0x24, 0xbe],
+	    '鶩': [0x71, 0x12, 0xbe],
+	    '鶫': [0xc7, 0xb6, 0x0a],
+	    '鶯': [0xf1, 0x24, 0xbe],
+	    '鶲': [0x95, 0x24, 0xbe],
+	    '鶴': [0x31, 0xbe],
+	    '鶸': [0xc7, 0x24, 0xbe],
+	    '鶺': [0x91, 0x24, 0xbe],
+	    '鶻': [0x83, 0x24, 0xbe],
+	    '鷁': [0x27, 0x24, 0xbe],
+	    '鷂': [0x83, 0xc0, 0xbe],
+	    '鷄': [0x45, 0x44, 0xbe],
+	    '鷆': [0xf7, 0xb6, 0x0a],
+	    '鷏': [0xf7, 0xc0, 0xbe],
+	    '鷓': [0x75, 0xc0, 0xbe],
+	    '鷙': [0x73, 0xc0, 0xbe],
+	    '鷦': [0x07, 0x24, 0xbe],
+	    '鷭': [0x55, 0x24, 0xbe],
+	    '鷯': [0x35, 0x12, 0xbe],
+	    '鷲': [0x91, 0xbe],
+	    '鷸': [0x71, 0xb6, 0x0a],
+	    '鷹': [0x71, 0x24, 0xbe],
+	    '鷺': [0xe7, 0xbe],
+	    '鷽': [0xc1, 0xb6, 0x0a],
+	    '鸚': [0x61, 0x24, 0xbe],
+	    '鸛': [0x97, 0x24, 0xbe],
+	    '鸞': [0x17, 0x24, 0xbe],
+	    '鹵': [0x35, 0x0c],
+	    '鹸': [0xe1, 0x24, 0x2e],
+	    '鹹': [0xe1, 0xc6, 0x48],
+	    '鹽': [0x73, 0x72, 0x8c],
+	    '鹿': [0xb5, 0x38],
+	    '麁': [0x93, 0xb4, 0x38],
+	    '麈': [0xd7, 0xb4, 0x38],
+	    '麋': [0x55, 0xb4, 0x38],
+	    '麌': [0x95, 0xb4, 0x38],
+	    '麑': [0x95, 0x24, 0xbc],
+	    '麒': [0x87, 0x24, 0xbc],
+	    '麓': [0x87, 0xb4, 0x38],
+	    '麕': [0xe5, 0xb4, 0x38],
+	    '麗': [0xe5, 0x38],
+	    '麝': [0xb5, 0xe6, 0xae],
+	    '麟': [0x55, 0x24, 0xbc],
+	    '麥': [0xd7, 0xd6, 0xba],
+	    '麦': [0xd7, 0xba],
+	    '麩': [0xb3, 0x24, 0x9e],
+	    '麪': [0xb3, 0x24, 0xe8],
+	    '麭': [0xb3, 0xf4, 0x0c],
+	    '麸': [0xb3, 0x40, 0x9e],
+	    '麹': [0xf5, 0xd6, 0xba],
+	    '麺': [0xb3, 0xf6, 0x18],
+	    '麻': [0xa5, 0xea],
+	    '麼': [0x45, 0xa4, 0xea],
+	    '麾': [0xe3, 0x10, 0xbe],
+	    '麿': [0xe3, 0xee],
+	    '黄': [0xa7, 0x9c],
+	    '黌': [0xc1, 0xa6, 0x9c],
+	    '黍': [0xa5, 0x88],
+	    '黎': [0x55, 0xa8],
+	    '黏': [0x55, 0x36, 0x7c],
+	    '黐': [0x55, 0x10, 0x0e],
+	    '黒': [0xa7, 0x9a],
+	    '黔': [0xa7, 0x26, 0x0a],
+	    '默': [0xa7, 0xa6, 0x9e],
+	    '黙': [0xa7, 0x9e],
+	    '黛': [0xa7, 0x90, 0xec],
+	    '黜': [0xa7, 0x30, 0xde],
+	    '黝': [0xa7, 0x44, 0x0a],
+	    '點': [0x37, 0x36, 0xf8],
+	    '黠': [0xa7, 0x72, 0x3e],
+	    '黥': [0xa7, 0xc0, 0x3e],
+	    '黨': [0xc1, 0xc0, 0x2c],
+	    '黯': [0xa7, 0xe2, 0xcc],
+	    '黴': [0xd1, 0xa6, 0x9a],
+	    '黶': [0x85, 0xa6, 0x9a],
+	    '黷': [0xa7, 0x72, 0x68],
+	    '黹': [0xa7, 0x40, 0x48],
+	    '黻': [0xa7, 0x34, 0x6c],
+	    '黼': [0xa7, 0x24, 0xdc],
+	    '黽': [0x21, 0xfe],
+	    '鼇': [0xd5, 0x30, 0xfe],
+	    '鼈': [0xb1, 0x30, 0xfe],
+	    '鼎': [0x13, 0xf6, 0x1a],
+	    '鼓': [0x75, 0xca],
+	    '鼕': [0x75, 0xb2, 0x0a],
+	    '鼠': [0x97, 0x96, 0x28],
+	    '鼡': [0x97, 0x28],
+	    '鼬': [0x97, 0x18],
+	    '鼻': [0xf7, 0x6a],
+	    '鼾': [0x83, 0xf6, 0x6a],
+	    '齊': [0xa3, 0xa2, 0xc8],
+	    '齋': [0xc1, 0xc0, 0xaa],
+	    '齎': [0x61, 0xc0, 0xaa],
+	    '齏': [0xa3, 0x10, 0xf8],
+	    '齒': [0xe1, 0xe0, 0x5c],
+	    '齔': [0xc7, 0xe0, 0x5c],
+	    '齟': [0xb5, 0xe0, 0x5c],
+	    '齠': [0xe5, 0xe0, 0x5c],
+	    '齡': [0xe1, 0xe0, 0x3c],
+	    '齢': [0xe1, 0x3c],
+	    '齣': [0xe1, 0xfc],
+	    '齦': [0x51, 0xe0, 0x5c],
+	    '齧': [0x53, 0xe0, 0x5c],
+	    '齪': [0xe1, 0xe6, 0x0c],
+	    '齬': [0xe1, 0x22, 0x3e],
+	    '齲': [0xe7, 0xe0, 0x5c],
+	    '齶': [0x97, 0xe0, 0x5c],
+	    '齷': [0xe1, 0x74, 0xd8],
+	    '龍': [0xe3, 0xe2, 0xac],
+	    '龕': [0xe3, 0x26, 0xec],
+	    '龜': [0x31, 0x30, 0xfe],
+	    '龝': [0x55, 0x24, 0xfe],
+	    '龠': [0x27, 0x36, 0x3e],
+	};
+
+
+/***/ },
+/* 4 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var table_1 = __webpack_require__(3);
+	var NORMAL_MODE = 0;
+	var NUMBER_MODE = 1;
+	var ALPHABET_MODE = 2;
+	var NO_MODIFIER = 0;
+	var DAKUON_MODIFIER = 1;
+	var HANDAKUON_MODIFIER = 2;
+	var YOON_MODIFIER = 4;
+	var MODIFIER_2 = 8; //2の点のmodifier
+	var KATAKANA_MODIFIER = 16; //カタカナ状態
+	//ALPHABET_MODE用
+	var CAPITAL_MODIFIER = 1;
+	var CAPITAL_SEQ_MODIFIER = 2;
+	var ALPHABET_QUOTE_MODIFIER = 4;
+	var invKanjiTable = __webpack_require__(5);
+	//inverse tableはchacheしておく
+	var invHiraganaTable = null;
+	function fromTenji(text, options) {
+	    if (options === void 0) { options = {}; }
+	    var space = options.space || ' ';
+	    var kanji = options.kanji || options['漢点字'] || false;
+	    var invh = getInvHiraganaTable();
+	    //flags
+	    var mode = NORMAL_MODE;
+	    var modifier = NO_MODIFIER;
+	    //漢点字のときにカタカナモードのフラグ
+	    var katakana_flg = false;
+	    var skipSpaces = 0;
+	    var result = '';
+	    f: for (var i = 0, l = text.length; i < l; i++) {
+	        var cc = text.charCodeAt(i);
+	        var cc2 = text.charCodeAt(i + 1);
+	        if (0x2800 <= cc && cc <= 0x28FF) {
+	            //点字だ
+	            var code = cc - 0x2800;
+	            if (code === 0) {
+	                //スペースだ
+	                if (skipSpaces > 0) {
+	                    skipSpaces--;
+	                }
+	                else {
+	                    result += space;
+	                }
+	                if (mode === ALPHABET_MODE && !(modifier & ALPHABET_QUOTE_MODIFIER)) {
+	                    //スペースがあると外字モードが消える
+	                    mode = NORMAL_MODE;
+	                    modifier = NO_MODIFIER;
+	                }
+	                continue;
+	            }
+	            if (kanji) {
+	                if (code & 0x09) {
+	                    //これ漢字っぽくなーい？？？？？？？？
+	                    var t = invKanjiTable;
+	                    var j = i;
+	                    while (t) {
+	                        if ('string' === typeof t) {
+	                            result += t;
+	                            i = j - 1;
+	                            continue f;
+	                        }
+	                        var c = text.charCodeAt(j);
+	                        if (0x2800 <= c && c <= 0x28FF) {
+	                            t = t[c - 0x2800];
+	                            j++;
+	                        }
+	                        else {
+	                            //漢字にならなかった
+	                            break;
+	                        }
+	                    }
+	                }
+	                else {
+	                    //処理用に上にずらす
+	                    code = nonkanji(code);
+	                }
+	            }
+	            if (mode === NUMBER_MODE) {
+	                //数字状態
+	                var nn = table_1.numberTable.indexOf(code);
+	                if (nn >= 0) {
+	                    result += String(nn);
+	                    continue;
+	                }
+	                else if (code === 0x04) {
+	                    //位取り点
+	                    result += ',';
+	                    continue;
+	                }
+	                else if (code === 0x02) {
+	                    //小数点
+	                    result += '.';
+	                    continue;
+	                }
+	                else if (code === 0x24) {
+	                    //第1つなぎ符
+	                    mode = NORMAL_MODE;
+	                    continue;
+	                }
+	                mode = NORMAL_MODE;
+	            }
+	            else if (mode === ALPHABET_MODE) {
+	                //えいご〜〜〜〜〜〜〜
+	                if (code === 0x20) {
+	                    //大文字符
+	                    modifier |= CAPITAL_MODIFIER;
+	                    if (0x2800 <= cc2 && cc <= 0x28FF) {
+	                        var code2 = nonkanji(cc2 - 0x2800);
+	                        if (code2 === 0x20) {
+	                            //大文字符×2
+	                            modifier |= CAPITAL_SEQ_MODIFIER;
+	                            i++;
+	                        }
+	                    }
+	                    continue;
+	                }
+	                else if (code === 0x24) {
+	                    //つなぎ符
+	                    mode = NORMAL_MODE;
+	                    modifier = NO_MODIFIER;
+	                    continue;
+	                }
+	                else if (code === 0x3c) {
+	                    //数符
+	                    mode = NUMBER_MODE;
+	                    modifier = NO_MODIFIER;
+	                    continue;
+	                }
+	                else if (code === 0x34 && (modifier & ALPHABET_QUOTE_MODIFIER)) {
+	                    //外字引用符（おわり）
+	                    mode = NORMAL_MODE;
+	                    modifier = NO_MODIFIER;
+	                    continue;
+	                }
+	                else {
+	                    var al = table_1.alphabetTable.indexOf(code);
+	                    if (al >= 0) {
+	                        result += String.fromCharCode(al + 0x61 - (modifier & CAPITAL_MODIFIER ? 0x20 : 0));
+	                        if ((modifier & CAPITAL_MODIFIER) && !(modifier & CAPITAL_SEQ_MODIFIER)) {
+	                            modifier ^= CAPITAL_MODIFIER;
+	                        }
+	                        continue;
+	                    }
+	                }
+	                if (!(modifier & ALPHABET_QUOTE_MODIFIER)) {
+	                    //英語にならなかったから日本語にしようっと
+	                    mode = NORMAL_MODE;
+	                    modifier = NO_MODIFIER;
+	                }
+	            }
+	            if ((code === 0x22 || code === 0x32) && 0x2800 <= cc2 && cc2 <= 0x28FF) {
+	                //疑問符/句点だけどmodifierかもしれない
+	                var code2 = nonkanji(cc2 - 0x2800);
+	                //次の文字の母音と子音を取得
+	                var boin = code2 & 0x0b;
+	                var shiin = code2 & 0x34;
+	                if (((boin === 0x01 || boin === 0x03 || boin === 0x0b || boin === 0x0a) &&
+	                    (shiin === 0 || shiin === 0x20 || shiin === 0x14 || shiin === 0x24)) ||
+	                    (boin === 0x09 && shiin === 0x14)) {
+	                    //意味がありそう
+	                    modifier = YOON_MODIFIER | MODIFIER_2 | (code & 0x10 ? DAKUON_MODIFIER : 0);
+	                    continue;
+	                }
+	            }
+	            //文字の変換
+	            if (code in invh && (!kanji || (code !== 0x16 && code !== 0x06))) {
+	                //ひらがなに変換可能
+	                var suffix = '';
+	                if (modifier & YOON_MODIFIER) {
+	                    //母音と子音を取り出す
+	                    var boin = code & 0x0b;
+	                    var shiin = code & 0x34;
+	                    if (modifier & MODIFIER_2) {
+	                        //2点modifier（特殊な拗音）
+	                        if ((modifier & DAKUON_MODIFIER) && shiin === 0x24) {
+	                            //ゔぁ……なのでふからうに変更
+	                            shiin = 0;
+	                        }
+	                        if (boin === 0x01) {
+	                            suffix = 'ぁ';
+	                            code = shiin | 0x09;
+	                        }
+	                        else if (boin === 0x03) {
+	                            suffix = 'ぃ';
+	                            code = shiin | 0x09;
+	                        }
+	                        else if (boin === 0x0b) {
+	                            suffix = 'ぇ';
+	                            code = shiin | 0x09;
+	                        }
+	                        else if (boin === 0x0a) {
+	                            suffix = 'ぉ';
+	                            code = shiin | 0x09;
+	                        }
+	                        else if (boin === 0x09) {
+	                            //とぅ・どぅの処理
+	                            suffix = 'ぅ';
+	                            code = shiin | 0x0a;
+	                        }
+	                    }
+	                    else if ((modifier & HANDAKUON_MODIFIER) && code === 0x1d) {
+	                        //てゅの処理
+	                        suffix = 'ゅ';
+	                        code = 0x1f;
+	                    }
+	                    else if ((modifier & HANDAKUON_MODIFIER) && (code === 0x2c || code === 0x1c)) {
+	                        //ふゅ・ふょの処理
+	                        suffix = code === 0x2c ? 'ゅ' : 'ょ';
+	                        //ふのときはゔにする
+	                        code = modifier & DAKUON_MODIFIER ? 0x09 : 0x2d;
+	                        //ふがぷにならないようにする
+	                        modifier = modifier ^ HANDAKUON_MODIFIER;
+	                    }
+	                    else if (kanji && (modifier & HANDAKUON_MODIFIER) && (code === 0x03 || code === 0x0b)) {
+	                        //漢点字の場合のゐ・ゑ
+	                        result += katakana(code === 0x03 ? 'ゐ' : 'ゑ');
+	                        modifier = NO_MODIFIER;
+	                        continue;
+	                    }
+	                    else if (kanji && (modifier & HANDAKUON_MODIFIER) && (code === 0x21 || code === 0x2b)) {
+	                        //漢点字のヵ・ヶ
+	                        result += katakana(code === 0x21 ? 'ゕ' : 'ゖ');
+	                        modifier = NO_MODIFIER;
+	                        continue;
+	                    }
+	                    else {
+	                        //比較的ふつうの拗音
+	                        if (boin === 0x01) {
+	                            //あ段
+	                            suffix = 'ゃ';
+	                            //い段に直す
+	                            code = shiin | 0x03;
+	                        }
+	                        else if (boin === 0x09) {
+	                            suffix = 'ゅ';
+	                            code = shiin | 0x03;
+	                        }
+	                        else if (boin === 0x0a) {
+	                            suffix = 'ょ';
+	                            code = shiin | 0x03;
+	                        }
+	                        else if (boin === 0x0b) {
+	                            //え段
+	                            suffix = 'ぇ';
+	                            code = shiin | 0x03;
+	                        }
+	                        else if (boin === 0x03) {
+	                            //い段？？？
+	                            if (shiin === 0x30) {
+	                                //すぃの処理
+	                                suffix = 'ぃ';
+	                                code = shiin | 0x09;
+	                            }
+	                            else if (shiin === 0x14) {
+	                                //てぃの処理
+	                                suffix = 'ぃ';
+	                                code = shiin | 0x0b;
+	                            }
+	                        }
+	                    }
+	                }
+	                if (modifier & DAKUON_MODIFIER) {
+	                    //濁音符
+	                    //子音を取り出す
+	                    var shiin = code & 0x34;
+	                    if (shiin === 0x20 || shiin === 0x30 || shiin === 0x14 || shiin === 0x24) {
+	                        //濁音化可能
+	                        result += katakana(String.fromCharCode(invh[code].charCodeAt(0) + 1)) + katakana(suffix);
+	                        modifier = NO_MODIFIER;
+	                        continue;
+	                    }
+	                    else if (code === 0x09) {
+	                        //ゔの処理
+	                        result += katakana('ゔ') + katakana(suffix);
+	                        modifier = NO_MODIFIER;
+	                        continue;
+	                    }
+	                }
+	                else if (modifier & HANDAKUON_MODIFIER) {
+	                    //半濁音
+	                    var shiin = code & 0x34;
+	                    if (shiin === 0x24) {
+	                        //は行
+	                        result += katakana(String.fromCharCode(invh[code].charCodeAt(0) + 2)) + katakana(suffix);
+	                        modifier = NO_MODIFIER;
+	                        continue;
+	                    }
+	                }
+	                modifier = NO_MODIFIER;
+	                result += katakana(invh[code]) + katakana(suffix);
+	            }
+	            else if ((code & 0x38) === code) {
+	                //modifierだ
+	                //でも記号類の可能性があるから先にチェック
+	                if (0x2800 <= cc2 && cc2 <= 0x28FF) {
+	                    var code2 = cc2 - 0x2800;
+	                    if (code === 0x30) {
+	                        //いろいろ可能性がある
+	                        if (code2 === 0x04) {
+	                            result += '「';
+	                            i++;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                        else if (code2 === 0x06) {
+	                            result += '」';
+	                            i++;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                        else if (code2 === 0x24) {
+	                            result += '『';
+	                            i++;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                        else if (code2 === 0x0f) {
+	                            result += '%';
+	                            i++;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                        else if (code2 === 0x2f) {
+	                            result += '&';
+	                            i++;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                        else if (code2 === 0x29) {
+	                            result += '#';
+	                            i++;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                        else if (code2 === 0x21) {
+	                            result += '*';
+	                            i++;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                        else if (code2 === 0 || cc2 === 0x0D || cc2 === 0x0A) {
+	                            //読点では？
+	                            result += '、';
+	                            skipSpaces = 1;
+	                        }
+	                        else {
+	                            //外字符にする
+	                            mode = ALPHABET_MODE;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                    }
+	                    else if (code === 0x10) {
+	                        if (code2 === 0x36) {
+	                            result += '(';
+	                            i++;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                        else if (code2 === 0 || cc2 === 0x0D || cc2 === 0x0A) {
+	                            result += '・';
+	                            skipSpaces = 1;
+	                        }
+	                    }
+	                    else if (code === 0x20) {
+	                        if (code2 === 0x06) {
+	                            result += '」';
+	                            i++;
+	                            modifier = NO_MODIFIER;
+	                            continue;
+	                        }
+	                    }
+	                }
+	                modifier =
+	                    (code & 0x10 ? DAKUON_MODIFIER : 0) |
+	                        (code & 0x20 ? HANDAKUON_MODIFIER : 0) |
+	                        (code & 0x08 ? YOON_MODIFIER : 0);
+	            }
+	            else {
+	                //記号類
+	                if (code === 0x12) {
+	                    result += 'ー';
+	                }
+	                else if (code === 0x22) {
+	                    result += '?';
+	                }
+	                else if (code === 0x24) {
+	                    //第1つなぎ符とかいろいろあるが
+	                    if (cc2 === 0x2806) {
+	                        result += '』';
+	                        i++;
+	                    }
+	                }
+	                else if (code === 0x36) {
+	                    //しかくい
+	                    if (cc2 === 0x2802) {
+	                        result += ')';
+	                        i++;
+	                    }
+	                }
+	                else if (code === 0x32) {
+	                    //句点
+	                    result += '。';
+	                    skipSpaces = 2;
+	                }
+	                else if (code === 0x3c) {
+	                    //数符だ
+	                    mode = NUMBER_MODE;
+	                }
+	                else if (code === 0x26) {
+	                    //外字引用符
+	                    mode = ALPHABET_MODE;
+	                    modifier = ALPHABET_QUOTE_MODIFIER;
+	                    continue;
+	                }
+	                else if (kanji && code === 0x16) {
+	                    //カタカナ符（漢点字）
+	                    katakana_flg = true;
+	                    continue;
+	                }
+	                else if (kanji && code === 0x06) {
+	                    //カタカナ符（おわり）
+	                    katakana_flg = false;
+	                    continue;
+	                }
+	                modifier = NO_MODIFIER;
+	            }
+	        }
+	        else {
+	            //他はスルー
+	            result += text.charAt(i);
+	        }
+	    }
+	    return result;
+	    function nonkanji(code) {
+	        if (kanji) {
+	            return (code & 0x06) >> 1 | (code & 0x30) >> 1 | (code & 0x40) >> 4 | (code & 0x80) >> 2;
+	        }
+	        else {
+	            return code;
+	        }
+	    }
+	    function katakana(char) {
+	        if (char === '') {
+	            return '';
+	        }
+	        if (katakana_flg) {
+	            return String.fromCharCode(char.charCodeAt(0) + 0x60);
+	        }
+	        else {
+	            return char;
+	        }
+	    }
+	}
+	exports.fromTenji = fromTenji;
+	//caching
+	function getInvHiraganaTable() {
+	    if (invHiraganaTable != null) {
+	        return invHiraganaTable;
+	    }
+	    invHiraganaTable = {};
+	    for (var k in table_1.hiraganaTable) {
+	        invHiraganaTable[table_1.hiraganaTable[k]] = k;
+	    }
+	    return invHiraganaTable;
+	}
+	/*
+	function makeParser(table):Parser{
+	    //parserを作る
+	    //まず下準備でテーブル作り
+	    const t_base = {};
+	    for(let k in table){
+	        const arr = table[k];
+	        const c0 = arr[0];
+	        if(t_base[c0] == null){
+	            t_base[c0] = [];
+	            //配列に文字を覚えさせる
+	            t_base[c0];
+	        }
+	        const a2 = arr.slice(1);
+	        a2._char = k;
+	        t_base[c0].push(a2);
+	    }
+	    //parser
+	    return (text:string, i:number)=>{
+	        let t = t_base;
+	        const l = text.length;
+	        while(i < l){
+	            const code = text.charCodeAt(i);
+	            if(code < 0x2800 || 0x28FF < code){
+	                //点字ではない
+	                return {
+	                    char: null,
+	                    nextIndex: i,
+	                };
+	            }
+	            const cc = code - 0x2800;
+	            const arr = t[cc];
+	            if(arr == null){
+	                //ない
+	                return {
+	                    char: null,
+	                    nextIndex: i,
+	                };
+	            }
+	            //あったのでバース継続
+	            const t2 = {};
+	            for(let a of arr){
+	                if(a.length===0){
+	                    //パース完了
+	                    return {
+	                        char: a._char,
+	                        nextIndex: i+1,
+	                    };
+	                }
+	                const c0 = a[0];
+	                if(t2[c0] == null){
+	                    t2[c0] = [];
+	                }
+	                const a2 = a.slice(1);
+	                a2._char = a._char;
+	                t2[c0].push(a2);
+	            }
+	            t = t2;
+	            i++;
+	        }
+	    };
+	}
+	*/
+
+
+/***/ },
+/* 5 */
+/***/ function(module, exports) {
+
+	module.exports = {
+		"3": {
+			"2": {
+				"10": "亞",
+				"26": "參",
+				"44": "兀",
+				"90": "刄",
+				"172": "惡",
+				"254": "眞"
+			},
+			"10": "亜",
+			"16": {
+				"94": "剱"
+			},
+			"18": {
+				"126": "舉",
+				"222": "寳"
+			},
+			"20": {
+				"186": "夐"
+			},
+			"26": "参",
+			"28": "丸",
+			"36": {
+				"218": "冨"
+			},
+			"38": {
+				"108": "敍"
+			},
+			"44": "元",
+			"48": {
+				"78": "襾",
+				"90": "匆",
+				"200": "卞",
+				"202": "毋"
+			},
+			"50": {
+				"10": "弌",
+				"238": "懴"
+			},
+			"52": {
+				"126": "愽",
+				"236": "冉"
+			},
+			"74": "意",
+			"76": "乃",
+			"78": "朮",
+			"84": {
+				"142": "乖"
+			},
+			"90": "刃",
+			"92": "喬",
+			"94": "衷",
+			"104": "斥",
+			"108": "叉",
+			"112": {
+				"60": "廰"
+			},
+			"120": "矛",
+			"122": "堊",
+			"124": "髟",
+			"134": {
+				"90": "剌",
+				"168": "朿"
+			},
+			"138": "于",
+			"140": "血",
+			"142": "甚",
+			"150": {
+				"138": "竒"
+			},
+			"156": "孑",
+			"158": "天",
+			"170": "卩",
+			"172": "悪",
+			"176": {
+				"158": "濳"
+			},
+			"186": "巨",
+			"188": "曹",
+			"192": {
+				"62": "亰"
+			},
+			"200": "亠",
+			"206": "雍",
+			"208": {
+				"10": "弖"
+			},
+			"212": {
+				"220": "夛"
+			},
+			"216": "憂",
+			"228": {
+				"14": "弍",
+				"222": "囗"
+			},
+			"232": "氏",
+			"234": "亟",
+			"236": "伐",
+			"254": "真"
+		},
+		"5": {
+			"14": "韋",
+			"26": "孚",
+			"36": {
+				"44": "丿"
+			},
+			"92": "乏",
+			"124": "卜",
+			"142": "巳",
+			"158": "太",
+			"170": "卵",
+			"188": "遂",
+			"206": "匕",
+			"216": "罔",
+			"236": "戎",
+			"250": "厶"
+		},
+		"7": {
+			"6": {
+				"14": "絲",
+				"30": "繪",
+				"92": "繼",
+				"120": "縱",
+				"122": "續",
+				"156": "總",
+				"158": "經",
+				"238": "纖",
+				"254": "繩"
+			},
+			"12": "丼",
+			"14": "維",
+			"16": {
+				"74": "紿",
+				"92": "緞"
+			},
+			"18": {
+				"42": "綰",
+				"46": "穽",
+				"94": "綜",
+				"104": "繽",
+				"120": "綻",
+				"234": "縡"
+			},
+			"26": "繰",
+			"30": "絵",
+			"34": {
+				"106": "緇",
+				"184": "繖"
+			},
+			"36": {
+				"30": "紜",
+				"56": "紕",
+				"58": "綸",
+				"60": "隼",
+				"90": "韜",
+				"104": "糺",
+				"110": "綵",
+				"120": "緤",
+				"122": "繞",
+				"124": "綯",
+				"170": "纃",
+				"186": "綾",
+				"190": "鷦",
+				"216": "絎",
+				"234": "縵",
+				"236": "絨",
+				"238": "緝"
+			},
+			"42": "絹",
+			"44": "縮",
+			"46": "紛",
+			"48": {
+				"174": "紂",
+				"236": "雋"
+			},
+			"52": {
+				"120": "紲"
+			},
+			"58": "縷",
+			"60": "紘",
+			"62": "絡",
+			"70": {
+				"94": "縹"
+			},
+			"74": "伊",
+			"76": "級",
+			"82": {
+				"44": "纔",
+				"172": "綛",
+				"216": "繍"
+			},
+			"84": {
+				"76": "綉",
+				"106": "繙"
+			},
+			"88": "繃",
+			"90": "紹",
+			"92": "継",
+			"96": {
+				"158": "纉"
+			},
+			"98": {
+				"24": "紬",
+				"76": "縲"
+			},
+			"102": {
+				"30": "繧",
+				"92": "繻"
+			},
+			"104": "績",
+			"106": "細",
+			"108": "隻",
+			"110": "絞",
+			"112": {
+				"156": "絋"
+			},
+			"114": {
+				"62": "纈"
+			},
+			"116": {
+				"62": "綮",
+				"158": "綟"
+			},
+			"120": "縦",
+			"122": "続",
+			"124": "絣",
+			"126": "縛",
+			"128": {
+				"174": "絏",
+				"238": "絽"
+			},
+			"134": {
+				"104": "紮"
+			},
+			"138": "紆",
+			"140": "縊",
+			"142": "紀",
+			"144": {
+				"216": "絛"
+			},
+			"150": {
+				"138": "綺",
+				"170": "綣"
+			},
+			"152": "緩",
+			"156": "総",
+			"158": "経",
+			"160": {
+				"126": "紵"
+			},
+			"162": {
+				"200": "緕"
+			},
+			"164": {
+				"234": "縻"
+			},
+			"166": {
+				"60": "縟"
+			},
+			"170": "糾",
+			"174": "紳",
+			"176": {
+				"216": "緻"
+			},
+			"178": {
+				"140": "繿"
+			},
+			"180": {
+				"156": "縒"
+			},
+			"184": "線",
+			"186": "終",
+			"188": "組",
+			"190": "繕",
+			"192": {
+				"12": "絖",
+				"72": "紊",
+				"76": "絃",
+				"110": "纐",
+				"236": "綫",
+				"238": "纎"
+			},
+			"196": {
+				"124": "綽",
+				"186": "絢",
+				"206": "縉"
+			},
+			"198": {
+				"72": "緘",
+				"218": "縅",
+				"250": "縺"
+			},
+			"200": "統",
+			"202": "絆",
+			"204": "織",
+			"206": "練",
+			"208": {
+				"250": "繦"
+			},
+			"210": {
+				"62": "絮",
+				"104": "纓",
+				"200": "綏"
+			},
+			"212": {
+				"188": "紗"
+			},
+			"216": "綱",
+			"218": "純",
+			"220": "紡",
+			"222": "編",
+			"228": {
+				"62": "絅",
+				"122": "綢"
+			},
+			"230": {
+				"232": "緡"
+			},
+			"232": "紙",
+			"234": "締",
+			"236": "給",
+			"238": "繊",
+			"242": {
+				"12": "繆"
+			},
+			"244": {
+				"42": "繝"
+			},
+			"246": {
+				"24": "緬",
+				"186": "纜"
+			},
+			"248": "焦",
+			"250": "繭",
+			"252": "約",
+			"254": "縄"
+		},
+		"13": "丶",
+		"15": "糸",
+		"17": {
+			"14": "離",
+			"16": {
+				"14": "隹",
+				"26": "彡",
+				"74": "臺",
+				"92": "殳",
+				"94": "劍",
+				"120": "豫",
+				"122": "甬",
+				"126": "專",
+				"152": "旡",
+				"184": "攵",
+				"188": "彖",
+				"216": "隶",
+				"222": "册"
+			},
+			"30": "亦",
+			"44": "儿",
+			"58": "甘",
+			"60": "辰",
+			"74": "台",
+			"76": "及",
+			"78": "旨",
+			"88": "乎",
+			"90": "刀",
+			"92": "段",
+			"94": "剣",
+			"108": "又",
+			"110": "也",
+			"120": "予",
+			"122": "庄",
+			"124": "長",
+			"126": "専",
+			"138": "干",
+			"140": "皿",
+			"142": "其",
+			"152": "司",
+			"156": "共",
+			"158": "夭",
+			"168": "勿",
+			"170": "印",
+			"182": {
+				"10": "鳫"
+			},
+			"184": "改",
+			"186": "臣",
+			"188": "曽",
+			"190": "毛",
+			"200": "凡",
+			"204": "旦",
+			"206": "皮",
+			"214": {
+				"56": "獎",
+				"78": "毬"
+			},
+			"216": "至",
+			"218": "不",
+			"220": "旁",
+			"222": "冊",
+			"228": {
+				"14": "貮"
+			},
+			"232": "缶",
+			"234": "了",
+			"236": "戈",
+			"238": "哉",
+			"242": {
+				"26": "軣",
+				"124": "辧"
+			},
+			"248": "非",
+			"250": "蜀",
+			"252": "以",
+			"254": "牙"
+		},
+		"19": {
+			"2": {
+				"10": "宀",
+				"44": "寇"
+			},
+			"4": {
+				"170": "孵"
+			},
+			"14": "彙",
+			"16": {
+				"14": "寉",
+				"60": "宸",
+				"108": "攴",
+				"186": "宦"
+			},
+			"18": {
+				"62": "竊",
+				"126": "擧",
+				"202": "實",
+				"222": "寶"
+			},
+			"20": {
+				"10": "窘"
+			},
+			"24": "宙",
+			"26": "寂",
+			"28": "究",
+			"30": "寅",
+			"32": {
+				"124": "豌"
+			},
+			"34": {
+				"62": "寤"
+			},
+			"36": {
+				"10": "寫",
+				"26": "寥",
+				"58": "寰",
+				"108": "謇",
+				"142": "寨",
+				"154": "寞",
+				"168": "窶",
+				"170": "窄",
+				"188": "騫",
+				"190": "鴪",
+				"206": "它",
+				"234": "宕",
+				"248": "窰"
+			},
+			"42": "官",
+			"44": "完",
+			"46": "穴",
+			"48": {
+				"30": "髞"
+			},
+			"52": {
+				"42": "宥"
+			},
+			"60": "寮",
+			"62": "窃",
+			"68": {
+				"10": "窈"
+			},
+			"74": "宅",
+			"78": "窪",
+			"82": {
+				"44": "寃"
+			},
+			"88": "密",
+			"90": "寡",
+			"92": "審",
+			"94": "宗",
+			"104": "賓",
+			"106": "容",
+			"108": "叔",
+			"116": {
+				"222": "窟"
+			},
+			"120": "定",
+			"122": "塞",
+			"126": "挙",
+			"128": {
+				"138": "甍"
+			},
+			"134": {
+				"24": "寐"
+			},
+			"138": "寄",
+			"142": "空",
+			"150": {
+				"40": "竄"
+			},
+			"154": "寓",
+			"156": "字",
+			"158": "突",
+			"160": {
+				"30": "宍",
+				"44": "窕"
+			},
+			"162": {
+				"190": "窿"
+			},
+			"170": "察",
+			"172": "憲",
+			"174": "守",
+			"178": {
+				"72": "彪"
+			},
+			"180": {
+				"10": "牢"
+			},
+			"184": "寒",
+			"186": "須",
+			"188": "宜",
+			"196": {
+				"120": "寔"
+			},
+			"202": "実",
+			"204": "宣",
+			"208": {
+				"10": "穹"
+			},
+			"216": "室",
+			"218": "安",
+			"222": "宝",
+			"230": {
+				"12": "蹇"
+			},
+			"234": "宰",
+			"236": "亮",
+			"238": "宮",
+			"246": {
+				"26": "鼎"
+			},
+			"248": "窯",
+			"250": "蜜",
+			"254": "督"
+		},
+		"21": {
+			"10": "君",
+			"16": {
+				"14": "魑"
+			},
+			"20": {
+				"26": "顏",
+				"60": "卆",
+				"76": "顯",
+				"124": "顱"
+			},
+			"24": "首",
+			"26": "顔",
+			"36": {
+				"44": "頏",
+				"124": "魁",
+				"158": "顴",
+				"186": "頤",
+				"190": "鴦",
+				"216": "魍",
+				"236": "戛",
+				"238": "顳"
+			},
+			"46": "頒",
+			"60": "卒",
+			"62": "顎",
+			"74": "頬",
+			"76": "顕",
+			"78": "鬼",
+			"90": "創",
+			"92": "類",
+			"98": {
+				"142": "顆",
+				"172": "顋"
+			},
+			"102": {
+				"24": "魎"
+			},
+			"106": "顰",
+			"108": "魃",
+			"114": {
+				"62": "頡"
+			},
+			"120": "預",
+			"122": "塾",
+			"124": "頭",
+			"126": "頂",
+			"128": {
+				"156": "頌"
+			},
+			"138": "順",
+			"142": "魅",
+			"152": "仇",
+			"158": "頚",
+			"166": {
+				"138": "赧"
+			},
+			"168": "頼",
+			"170": "郡",
+			"184": "敵",
+			"186": "夏",
+			"188": "群",
+			"190": "鳩",
+			"192": {
+				"158": "頸",
+				"236": "戞"
+			},
+			"200": "頽",
+			"204": "題",
+			"206": "頗",
+			"218": "頓",
+			"228": {
+				"62": "顫"
+			},
+			"232": "賦",
+			"234": "碩",
+			"236": "賎",
+			"248": "熟"
+		},
+		"23": {
+			"2": {
+				"120": "譎",
+				"232": "詆"
+			},
+			"14": "誰",
+			"16": {
+				"74": "詒"
+			},
+			"18": {
+				"120": "諚",
+				"188": "誼",
+				"204": "諠"
+			},
+			"22": {
+				"122": "讀",
+				"138": "謠",
+				"172": "戀",
+				"186": "變",
+				"232": "圓",
+				"250": "蠻"
+			},
+			"26": "諺",
+			"32": {
+				"138": "誅",
+				"188": "詛"
+			},
+			"36": {
+				"14": "諱",
+				"28": "謫",
+				"90": "諂",
+				"104": "讚",
+				"106": "謖",
+				"122": "誦",
+				"126": "攣",
+				"138": "訐",
+				"140": "臠",
+				"142": "欒",
+				"154": "謨",
+				"158": "諤",
+				"190": "鸞",
+				"204": "譫",
+				"206": "詑",
+				"222": "諞",
+				"234": "譬",
+				"238": "讖",
+				"250": "諢",
+				"252": "諡"
+			},
+			"38": {
+				"140": "謚"
+			},
+			"44": "説",
+			"46": "評",
+			"48": {
+				"138": "訶",
+				"158": "奕",
+				"204": "諧"
+			},
+			"54": {
+				"26": "譟",
+				"60": "詁"
+			},
+			"58": "論",
+			"60": "計",
+			"62": "諒",
+			"68": {
+				"236": "譏"
+			},
+			"74": "託",
+			"76": "誘",
+			"78": "魂",
+			"82": {
+				"44": "讒"
+			},
+			"90": "詔",
+			"92": "設",
+			"96": {
+				"158": "讃"
+			},
+			"104": "誓",
+			"106": "課",
+			"112": {
+				"62": "詬",
+				"248": "詼"
+			},
+			"116": {
+				"60": "鞫",
+				"236": "誡"
+			},
+			"120": "諜",
+			"122": "読",
+			"124": "訃",
+			"126": "訂",
+			"130": {
+				"232": "謌"
+			},
+			"134": {
+				"74": "誄"
+			},
+			"138": "謡",
+			"140": "謂",
+			"142": "記",
+			"144": {
+				"56": "訛",
+				"218": "誣"
+			},
+			"146": {
+				"138": "譁",
+				"170": "詭"
+			},
+			"148": {
+				"10": "訌",
+				"154": "誥"
+			},
+			"150": {
+				"222": "誑"
+			},
+			"152": "詞",
+			"154": "護",
+			"156": "誤",
+			"158": "誇",
+			"164": {
+				"40": "謐"
+			},
+			"168": "諾",
+			"170": "詐",
+			"172": "恋",
+			"174": "討",
+			"178": {
+				"138": "謔"
+			},
+			"180": {
+				"44": "諍",
+				"140": "誚"
+			},
+			"184": "謁",
+			"186": "変",
+			"188": "許",
+			"190": "話",
+			"192": {
+				"28": "訖",
+				"122": "讌",
+				"156": "諄",
+				"158": "讙",
+				"204": "譖",
+				"234": "謾",
+				"248": "譌"
+			},
+			"194": {
+				"42": "譴"
+			},
+			"196": {
+				"60": "譚",
+				"158": "譛",
+				"186": "詢"
+			},
+			"198": {
+				"92": "謎"
+			},
+			"202": "誕",
+			"204": "識",
+			"206": "誠",
+			"216": "諭",
+			"218": "譜",
+			"220": "訪",
+			"222": "註",
+			"228": {
+				"152": "訥"
+			},
+			"230": {
+				"92": "謦",
+				"108": "諏"
+			},
+			"232": "円",
+			"234": "諦",
+			"236": "議",
+			"238": "謝",
+			"242": {
+				"12": "謬",
+				"44": "諷"
+			},
+			"248": "談",
+			"250": "蛮",
+			"252": "謳",
+			"254": "訝"
+		},
+		"27": "家",
+		"29": "頁",
+		"31": "言",
+		"33": {
+			"14": "井",
+			"16": {
+				"94": "劔"
+			},
+			"26": "彭",
+			"30": "叟",
+			"44": "亢",
+			"46": "帚",
+			"58": "侖",
+			"74": "夾",
+			"76": "亥",
+			"78": "賈",
+			"88": "豈",
+			"92": "之",
+			"124": "豆",
+			"126": "夬",
+			"138": "朱",
+			"140": "奐",
+			"152": "爰",
+			"154": "禺",
+			"156": "呉",
+			"158": "咢",
+			"170": "巷",
+			"174": "申",
+			"188": "且",
+			"200": "舜",
+			"204": "亘",
+			"206": "巴",
+			"216": "兪",
+			"218": "賁",
+			"220": "亡",
+			"234": "曼",
+			"236": "冂",
+			"238": "禹",
+			"250": "牟",
+			"252": "鬥",
+			"254": "黽"
+		},
+		"35": {
+			"26": "膨",
+			"30": "謄",
+			"34": {
+				"106": "畄",
+				"186": "臟"
+			},
+			"36": {
+				"142": "朞",
+				"188": "朦",
+				"190": "鵑"
+			},
+			"42": "朋",
+			"48": {
+				"88": "朖",
+				"222": "朏"
+			},
+			"60": "臘",
+			"62": "吾",
+			"74": "臆",
+			"76": "服",
+			"88": "朗",
+			"90": "前",
+			"92": "能",
+			"104": "貿",
+			"106": "留",
+			"124": "脹",
+			"138": "勝",
+			"142": "期",
+			"150": {
+				"76": "縢",
+				"78": "滕"
+			},
+			"158": "朕",
+			"172": "態",
+			"174": "腑",
+			"184": "散",
+			"186": "臓",
+			"188": "騰",
+			"190": "鵬",
+			"202": "朔",
+			"234": "朧",
+			"248": "熊",
+			"252": "胞"
+		},
+		"37": {
+			"2": {
+				"44": "冦"
+			},
+			"10": "写",
+			"16": {
+				"206": "皸"
+			},
+			"24": "与",
+			"28": "頑",
+			"36": {
+				"10": "冩",
+				"24": "與",
+				"78": "埀",
+				"108": "寢",
+				"156": "窗",
+				"190": "鶤",
+				"200": "亅"
+			},
+			"44": "冤",
+			"60": "宏",
+			"62": "客",
+			"72": "冖",
+			"74": "褒",
+			"78": "垂",
+			"86": {
+				"10": "袞"
+			},
+			"90": "割",
+			"92": "稼",
+			"94": "衰",
+			"106": "豁",
+			"108": "寝",
+			"126": "寧",
+			"138": "宇",
+			"142": "宋",
+			"146": {
+				"174": "冪"
+			},
+			"156": "窓",
+			"170": "搾",
+			"172": "忠",
+			"174": "冠",
+			"182": {
+				"10": "鳬"
+			},
+			"188": "宵",
+			"196": {
+				"10": "皃"
+			},
+			"200": "冗",
+			"204": "宴",
+			"216": "窒",
+			"218": "富",
+			"220": "夙",
+			"222": "害",
+			"234": "寵",
+			"238": "窮",
+			"244": {
+				"136": "兇"
+			},
+			"250": "軍",
+			"254": "寛"
+		},
+		"39": {
+			"10": "今",
+			"16": {
+				"120": "舒"
+			},
+			"28": "倉",
+			"30": "会",
+			"36": {
+				"44": "兜",
+				"142": "禽",
+				"172": "忿",
+				"190": "鷁",
+				"252": "兮"
+			},
+			"38": {
+				"30": "會",
+				"108": "敘",
+				"190": "舍",
+				"220": "舖",
+				"252": "餘"
+			},
+			"54": {
+				"62": "龠"
+			},
+			"62": "含",
+			"74": "傘",
+			"90": "動",
+			"92": "粉",
+			"94": "裏",
+			"104": "貧",
+			"108": "叙",
+			"120": "野",
+			"122": "坪",
+			"124": "斜",
+			"138": "平",
+			"140": "益",
+			"144": {
+				"44": "个"
+			},
+			"158": "兼",
+			"170": "命",
+			"172": "念",
+			"184": "斂",
+			"190": "舎",
+			"192": {
+				"190": "鴿"
+			},
+			"204": "昌",
+			"220": "舗",
+			"222": "全",
+			"236": "合",
+			"242": {
+				"12": "翕"
+			},
+			"244": {
+				"10": "氛"
+			},
+			"252": "余",
+			"254": "穿"
+		},
+		"43": "月",
+		"45": "宿",
+		"47": "分",
+		"49": {
+			"14": "雌",
+			"24": "此",
+			"26": "上",
+			"30": "高",
+			"42": "亙",
+			"44": "中",
+			"46": "里",
+			"48": {
+				"254": "龜"
+			},
+			"56": "些",
+			"62": "凸",
+			"74": "入",
+			"76": "左",
+			"78": "西",
+			"88": "良",
+			"90": "匁",
+			"104": "斤",
+			"106": "尺",
+			"122": "貫",
+			"124": "斗",
+			"138": "可",
+			"140": "互",
+			"142": "北",
+			"154": "升",
+			"158": "大",
+			"168": "右",
+			"188": "小",
+			"190": "鶴",
+			"200": "下",
+			"202": "母",
+			"204": "皆",
+			"206": "東",
+			"216": "優",
+			"218": "屯",
+			"222": "出",
+			"232": "低",
+			"236": "凹",
+			"238": "南",
+			"248": "丈",
+			"252": "勺",
+			"254": "亀"
+		},
+		"51": {
+			"2": {
+				"120": "懋"
+			},
+			"6": {
+				"248": "憔"
+			},
+			"10": "壱",
+			"14": "惟",
+			"16": {
+				"74": "怡",
+				"124": "悵",
+				"204": "怛"
+			},
+			"18": {
+				"204": "愃"
+			},
+			"20": {
+				"60": "悴",
+				"78": "愧",
+				"168": "懶"
+			},
+			"26": "惨",
+			"28": "怏",
+			"32": {
+				"220": "惘"
+			},
+			"34": {
+				"202": "愬"
+			},
+			"36": {
+				"14": "懼",
+				"28": "忰",
+				"42": "悁",
+				"60": "悖",
+				"90": "恊",
+				"92": "惴",
+				"106": "懌",
+				"122": "慂",
+				"126": "慱",
+				"140": "慍",
+				"156": "愡",
+				"158": "愕",
+				"168": "慯",
+				"186": "愎",
+				"200": "忱",
+				"204": "憺",
+				"216": "愆",
+				"232": "懿",
+				"252": "恟",
+				"254": "怫"
+			},
+			"38": {
+				"28": "愴",
+				"90": "慟",
+				"138": "怦",
+				"158": "慊",
+				"236": "恰"
+			},
+			"42": "惰",
+			"44": "悦",
+			"46": "憧",
+			"48": {
+				"104": "忻",
+				"174": "忖"
+			},
+			"50": {
+				"10": "壹",
+				"26": "慘",
+				"58": "懷",
+				"110": "惱",
+				"204": "恆",
+				"254": "愼"
+			},
+			"52": {
+				"122": "恠",
+				"254": "悳"
+			},
+			"54": {
+				"26": "懆",
+				"60": "怙",
+				"62": "憚",
+				"190": "恬"
+			},
+			"58": "懐",
+			"62": "悟",
+			"64": {
+				"188": "忸"
+			},
+			"66": {
+				"142": "恷",
+				"206": "憊"
+			},
+			"70": {
+				"94": "慓",
+				"254": "懣"
+			},
+			"74": "憶",
+			"78": "慄",
+			"82": {
+				"44": "悗"
+			},
+			"84": {
+				"90": "悧",
+				"156": "悸",
+				"248": "愀"
+			},
+			"88": "恨",
+			"90": "惻",
+			"92": "憐",
+			"94": "惜",
+			"96": {
+				"40": "惧"
+			},
+			"98": {
+				"232": "慾"
+			},
+			"102": {
+				"92": "懦"
+			},
+			"110": "悩",
+			"112": {
+				"10": "愿",
+				"216": "慷",
+				"236": "慵",
+				"248": "恢"
+			},
+			"114": {
+				"108": "愨",
+				"174": "恃",
+				"186": "慳",
+				"236": "憙"
+			},
+			"116": {
+				"152": "怩"
+			},
+			"122": "慣",
+			"124": "悼",
+			"126": "快",
+			"128": {
+				"170": "怎"
+			},
+			"134": {
+				"74": "憖",
+				"168": "悚"
+			},
+			"138": "悍",
+			"140": "恤",
+			"142": "某",
+			"144": {
+				"60": "怜",
+				"78": "恁"
+			},
+			"146": {
+				"168": "惹"
+			},
+			"150": {
+				"170": "惓",
+				"204": "惷"
+			},
+			"152": "慨",
+			"154": "慌",
+			"156": "怯",
+			"158": "怪",
+			"172": "惚",
+			"174": "怖",
+			"176": {
+				"24": "怺",
+				"232": "恣"
+			},
+			"178": {
+				"62": "恪"
+			},
+			"180": {
+				"24": "忤",
+				"140": "悄"
+			},
+			"188": "憎",
+			"190": "情",
+			"192": {
+				"12": "恍",
+				"156": "惇",
+				"158": "懽",
+				"250": "慚"
+			},
+			"194": {
+				"154": "慥"
+			},
+			"196": {
+				"10": "怕",
+				"14": "惺",
+				"62": "憬",
+				"186": "恂",
+				"222": "惶"
+			},
+			"200": "悋",
+			"202": "悔",
+			"204": "恒",
+			"206": "憾",
+			"208": {
+				"44": "悌",
+				"120": "慫"
+			},
+			"210": {
+				"170": "悽"
+			},
+			"216": "愉",
+			"218": "憤",
+			"220": "忙",
+			"228": {
+				"62": "懍",
+				"122": "惆",
+				"124": "恫",
+				"142": "悃",
+				"188": "懈",
+				"206": "悒"
+			},
+			"230": {
+				"232": "愍",
+				"238": "懾"
+			},
+			"234": "慢",
+			"236": "懊",
+			"238": "懺",
+			"242": {
+				"104": "慙",
+				"204": "慴",
+				"248": "憮"
+			},
+			"244": {
+				"10": "愾",
+				"40": "怐",
+				"168": "慝"
+			},
+			"250": "悛",
+			"252": "憫",
+			"254": "慎"
+		},
+		"53": {
+			"12": "鹵",
+			"14": "雄",
+			"16": {
+				"236": "戟"
+			},
+			"18": {
+				"190": "鷯"
+			},
+			"24": "才",
+			"28": "賑",
+			"36": {
+				"14": "韓",
+				"90": "剋",
+				"190": "鴒"
+			},
+			"42": "有",
+			"44": "克",
+			"48": {
+				"174": "尅"
+			},
+			"54": {
+				"44": "兢",
+				"60": "辜"
+			},
+			"62": "唇",
+			"76": "索",
+			"78": "求",
+			"90": "協",
+			"94": "喪",
+			"104": "乾",
+			"108": "友",
+			"120": "世",
+			"122": "在",
+			"124": "斡",
+			"126": "博",
+			"138": "幹",
+			"140": "朝",
+			"142": "材",
+			"156": "存",
+			"170": "郁",
+			"174": "布",
+			"184": "救",
+			"188": "牽",
+			"192": {
+				"190": "鴇"
+			},
+			"202": "半",
+			"206": "飛",
+			"232": "叛",
+			"234": "辛",
+			"236": "再",
+			"250": "翰",
+			"254": "直"
+		},
+		"55": {
+			"2": {
+				"74": "噫",
+				"138": "吁",
+				"254": "嗔"
+			},
+			"10": "唖",
+			"14": "唯",
+			"16": {
+				"90": "叨",
+				"156": "哄",
+				"216": "咥",
+				"254": "呀"
+			},
+			"18": {
+				"74": "咤",
+				"142": "啌",
+				"204": "喧",
+				"236": "喨",
+				"254": "嚔"
+			},
+			"20": {
+				"186": "嗄",
+				"218": "噸"
+			},
+			"24": "味",
+			"26": "品",
+			"28": "額",
+			"32": {
+				"44": "吭",
+				"188": "咀"
+			},
+			"34": {
+				"62": "唔"
+			},
+			"36": {
+				"14": "售",
+				"26": "噪",
+				"28": "囂",
+				"46": "吩",
+				"60": "叶",
+				"62": "喀",
+				"76": "咳",
+				"78": "唾",
+				"90": "啗",
+				"92": "喘",
+				"104": "嘶",
+				"122": "啀",
+				"126": "嚀",
+				"138": "嚠",
+				"142": "呆",
+				"158": "哭",
+				"170": "咋",
+				"184": "喝",
+				"186": "咎",
+				"188": "噌",
+				"190": "嚥",
+				"216": "哘",
+				"220": "嗷",
+				"232": "唄",
+				"236": "串",
+				"250": "吮",
+				"254": "嚏"
+			},
+			"38": {
+				"236": "哈"
+			},
+			"44": "兄",
+			"46": "吟",
+			"48": {
+				"24": "呰",
+				"30": "嚆",
+				"46": "哩",
+				"74": "叺",
+				"78": "哂",
+				"104": "听",
+				"106": "呎",
+				"174": "吋",
+				"222": "咄",
+				"238": "喃"
+			},
+			"50": {
+				"10": "噎"
+			},
+			"54": {
+				"62": "單",
+				"186": "號",
+				"236": "戰",
+				"238": "囑",
+				"248": "點"
+			},
+			"58": "唸",
+			"60": "古",
+			"62": "単",
+			"66": {
+				"174": "咐"
+			},
+			"74": "史",
+			"76": "吸",
+			"78": "嗜",
+			"82": {
+				"216": "嘯"
+			},
+			"84": {
+				"62": "啝",
+				"248": "啾"
+			},
+			"88": "呼",
+			"90": "切",
+			"92": "唆",
+			"94": "別",
+			"96": {
+				"188": "囎"
+			},
+			"98": {
+				"140": "喟"
+			},
+			"104": "哲",
+			"108": "啜",
+			"110": "筈",
+			"114": {
+				"122": "哇"
+			},
+			"116": {
+				"12": "咾",
+				"156": "哮",
+				"158": "唳"
+			},
+			"120": "喋",
+			"122": "吐",
+			"124": "占",
+			"126": "括",
+			"128": {
+				"200": "咒"
+			},
+			"134": {
+				"90": "喇",
+				"94": "噤"
+			},
+			"138": "嚇",
+			"140": "喚",
+			"142": "架",
+			"144": {
+				"218": "噬"
+			},
+			"146": {
+				"30": "囈",
+				"138": "嘩"
+			},
+			"148": {
+				"104": "吼"
+			},
+			"152": "吏",
+			"154": "嘆",
+			"156": "喉",
+			"158": "咲",
+			"160": {
+				"46": "叭",
+				"126": "叮",
+				"156": "呷"
+			},
+			"164": {
+				"122": "呱",
+				"234": "嘛"
+			},
+			"168": "吻",
+			"170": "叫",
+			"172": "患",
+			"174": "尋",
+			"176": {
+				"24": "咏",
+				"232": "咨"
+			},
+			"178": {
+				"62": "咯",
+				"170": "喞"
+			},
+			"180": {
+				"10": "吽",
+				"72": "啄",
+				"156": "嗟"
+			},
+			"182": {
+				"26": "嗚",
+				"190": "喰"
+			},
+			"184": "故",
+			"186": "号",
+			"188": "哨",
+			"190": "舌",
+			"192": {
+				"28": "吃",
+				"72": "吝",
+				"88": "嚼",
+				"110": "咬",
+				"188": "喙",
+				"190": "鴣"
+			},
+			"196": {
+				"74": "哽",
+				"124": "啅"
+			},
+			"198": {
+				"72": "喊",
+				"250": "嗹"
+			},
+			"200": "囃",
+			"202": "只",
+			"204": "唱",
+			"206": "叱",
+			"210": {
+				"104": "嚶",
+				"108": "呶"
+			},
+			"212": {
+				"88": "嗾",
+				"200": "唹"
+			},
+			"214": {
+				"104": "嘖",
+				"124": "哢"
+			},
+			"216": "喩",
+			"218": "噴",
+			"220": "哺",
+			"222": "呈",
+			"224": {
+				"92": "噛",
+				"170": "啣"
+			},
+			"226": {
+				"174": "啼"
+			},
+			"228": {
+				"10": "哦",
+				"136": "嘴",
+				"152": "吶",
+				"158": "咽"
+			},
+			"232": "吹",
+			"234": "噺",
+			"236": "戦",
+			"238": "嘱",
+			"240": {
+				"248": "啖"
+			},
+			"242": {
+				"10": "嗤",
+				"126": "囀",
+				"248": "嘸"
+			},
+			"244": {
+				"12": "咆"
+			},
+			"246": {
+				"44": "覘",
+				"106": "嚊",
+				"174": "唏"
+			},
+			"248": "点",
+			"250": "融",
+			"252": "嘔",
+			"254": "嗅"
+		},
+		"57": "比",
+		"59": "性",
+		"61": "十",
+		"63": "口",
+		"65": {
+			"26": "冢",
+			"30": "云",
+			"78": "奚",
+			"88": "艮",
+			"94": "幵",
+			"124": "并",
+			"138": "咼",
+			"142": "已",
+			"152": "尢",
+			"154": "艸",
+			"156": "巽",
+			"158": "夫",
+			"188": "曾",
+			"206": "戌",
+			"216": "臾",
+			"218": "聿",
+			"220": "敖",
+			"236": "弋",
+			"238": "襄",
+			"250": "冓",
+			"254": "乂"
+		},
+		"67": {
+			"2": {
+				"76": "仍",
+				"90": "仞",
+				"158": "俣"
+			},
+			"14": "偉",
+			"18": {
+				"74": "侘",
+				"108": "俶",
+				"142": "倥"
+			},
+			"20": {
+				"60": "倅",
+				"78": "傀"
+			},
+			"26": "修",
+			"28": "傾",
+			"30": "信",
+			"32": {
+				"138": "侏",
+				"188": "俎"
+			},
+			"36": {
+				"14": "儁",
+				"26": "俘",
+				"44": "伉",
+				"58": "僂",
+				"60": "什",
+				"74": "侠",
+				"90": "仂",
+				"106": "僵",
+				"122": "僥",
+				"124": "仆",
+				"126": "傅",
+				"152": "从",
+				"156": "偬",
+				"170": "那",
+				"184": "偈",
+				"190": "雁",
+				"202": "伎",
+				"216": "偸",
+				"220": "傲",
+				"234": "僻",
+				"250": "俥",
+				"252": "們",
+				"254": "爽"
+			},
+			"38": {
+				"204": "倡"
+			},
+			"44": "仲",
+			"46": "働",
+			"48": {
+				"46": "俚",
+				"168": "佑",
+				"204": "偕",
+				"248": "仗"
+			},
+			"52": {
+				"42": "侑"
+			},
+			"54": {
+				"26": "侃",
+				"60": "估",
+				"184": "做"
+			},
+			"58": "倫",
+			"60": "僚",
+			"62": "保",
+			"66": {
+				"78": "價",
+				"126": "傳",
+				"136": "體",
+				"232": "假"
+			},
+			"74": "僕",
+			"76": "係",
+			"78": "価",
+			"82": {
+				"44": "俛"
+			},
+			"84": {
+				"90": "俐",
+				"218": "倭"
+			},
+			"88": "候",
+			"90": "例",
+			"92": "儒",
+			"94": "借",
+			"96": {
+				"40": "倶"
+			},
+			"98": {
+				"60": "儂",
+				"106": "儡",
+				"170": "俾"
+			},
+			"102": {
+				"24": "倆"
+			},
+			"104": "債",
+			"106": "俗",
+			"110": "他",
+			"112": {
+				"26": "偐",
+				"184": "儼",
+				"236": "傭"
+			},
+			"114": {
+				"62": "佶",
+				"138": "倖",
+				"236": "僖"
+			},
+			"116": {
+				"10": "倨",
+				"204": "偖",
+				"222": "倔"
+			},
+			"120": "俯",
+			"122": "仕",
+			"124": "併",
+			"126": "伝",
+			"128": {
+				"158": "佚",
+				"250": "俟"
+			},
+			"136": "体",
+			"138": "何",
+			"142": "休",
+			"144": {
+				"44": "价",
+				"60": "伶"
+			},
+			"146": {
+				"14": "儺"
+			},
+			"148": {
+				"44": "倪"
+			},
+			"150": {
+				"138": "倚",
+				"170": "倦",
+				"220": "俸"
+			},
+			"152": "伺",
+			"154": "偶",
+			"156": "供",
+			"158": "伏",
+			"160": {
+				"42": "伍",
+				"44": "佻",
+				"190": "仟",
+				"254": "佰"
+			},
+			"162": {
+				"200": "儕"
+			},
+			"166": {
+				"190": "倩"
+			},
+			"170": "仰",
+			"172": "怠",
+			"174": "付",
+			"178": {
+				"140": "儖"
+			},
+			"180": {
+				"12": "佯"
+			},
+			"182": {
+				"14": "甦"
+			},
+			"188": "件",
+			"192": {
+				"44": "儻",
+				"110": "佼",
+				"158": "倏",
+				"190": "鳰",
+				"220": "儚",
+				"252": "偃"
+			},
+			"196": {
+				"124": "倬",
+				"158": "僣"
+			},
+			"202": "侮",
+			"204": "但",
+			"206": "備",
+			"208": {
+				"44": "俤"
+			},
+			"210": {
+				"248": "侭"
+			},
+			"212": {
+				"220": "侈"
+			},
+			"214": {
+				"174": "儔"
+			},
+			"216": "倒",
+			"218": "健",
+			"220": "傍",
+			"222": "住",
+			"226": {
+				"46": "僮"
+			},
+			"228": {
+				"10": "俄",
+				"56": "儷",
+				"62": "嗇"
+			},
+			"232": "仮",
+			"234": "位",
+			"236": "個",
+			"238": "促",
+			"242": {
+				"174": "佩"
+			},
+			"244": {
+				"40": "佝"
+			},
+			"246": {
+				"44": "俔"
+			},
+			"248": "俳",
+			"250": "俊",
+			"252": "似",
+			"254": "値"
+		},
+		"69": {
+			"10": "幼",
+			"14": "緯",
+			"24": "幻",
+			"30": "縞",
+			"36": {
+				"60": "繚",
+				"140": "盈",
+				"156": "絳",
+				"254": "緜"
+			},
+			"42": "縋",
+			"58": "紺",
+			"62": "結",
+			"68": {
+				"78": "溪",
+				"120": "纒",
+				"190": "鷄"
+			},
+			"72": "幺",
+			"76": "幽",
+			"78": "渓",
+			"88": "郷",
+			"90": "劾",
+			"94": "刻",
+			"98": {
+				"10": "谿"
+			},
+			"106": "繹",
+			"108": "綴",
+			"120": "纏",
+			"126": "携",
+			"152": "納",
+			"156": "紅",
+			"164": {
+				"234": "麼"
+			},
+			"172": "慈",
+			"174": "絶",
+			"186": "緊",
+			"188": "縁",
+			"190": "鶏",
+			"192": {
+				"108": "綬"
+			},
+			"200": "紋",
+			"204": "緒",
+			"206": "紐",
+			"212": {
+				"188": "緲"
+			},
+			"214": {
+				"202": "纛"
+			},
+			"216": "網",
+			"220": "縫",
+			"234": "響",
+			"236": "幾",
+			"248": "緋",
+			"254": "綿"
+		},
+		"71": {
+			"2": {
+				"26": "滲",
+				"104": "泝",
+				"140": "洫",
+				"142": "湛"
+			},
+			"4": {
+				"92": "泛"
+			},
+			"14": "湿",
+			"16": {
+				"14": "漓",
+				"76": "汲",
+				"126": "溥",
+				"142": "淇",
+				"156": "洪",
+				"200": "汎"
+			},
+			"18": {
+				"44": "浣",
+				"90": "渊",
+				"92": "瀋",
+				"94": "淙",
+				"120": "淀",
+				"188": "覊",
+				"232": "澀",
+				"234": "滓",
+				"250": "淕"
+			},
+			"20": {
+				"60": "淬",
+				"236": "濺"
+			},
+			"22": {
+				"188": "滸"
+			},
+			"24": "泳",
+			"26": "淑",
+			"28": "滴",
+			"30": "沿",
+			"32": {
+				"138": "洙",
+				"188": "沮",
+				"220": "瀛"
+			},
+			"34": {
+				"106": "溜",
+				"184": "潸",
+				"202": "溯"
+			},
+			"36": {
+				"10": "瀉",
+				"14": "淮",
+				"26": "澎",
+				"30": "溲",
+				"42": "澗",
+				"46": "汾",
+				"58": "淪",
+				"60": "汁",
+				"74": "浹",
+				"78": "洒",
+				"88": "澂",
+				"90": "淵",
+				"92": "湍",
+				"104": "潰",
+				"106": "沺",
+				"120": "渫",
+				"122": "涅",
+				"124": "淘",
+				"126": "濘",
+				"138": "渦",
+				"140": "盥",
+				"142": "沐",
+				"152": "湲",
+				"154": "漠",
+				"156": "潺",
+				"158": "沃",
+				"170": "氾",
+				"172": "沁",
+				"174": "沛",
+				"184": "覈",
+				"186": "溌",
+				"188": "漕",
+				"190": "鴻",
+				"200": "滾",
+				"204": "澹",
+				"206": "沱",
+				"218": "濆",
+				"220": "滂",
+				"232": "漱",
+				"236": "溷",
+				"250": "渾",
+				"254": "泪"
+			},
+			"38": {
+				"28": "滄",
+				"138": "泙",
+				"184": "瀲",
+				"236": "洽"
+			},
+			"42": "湖",
+			"44": "沖",
+			"46": "浜",
+			"48": {
+				"46": "浬",
+				"78": "湮",
+				"104": "沂",
+				"138": "渮",
+				"140": "沍",
+				"218": "沌"
+			},
+			"52": {
+				"120": "泄",
+				"138": "澣",
+				"250": "瀚"
+			},
+			"54": {
+				"26": "澡",
+				"60": "沽",
+				"124": "沾",
+				"174": "潯"
+			},
+			"56": "混",
+			"60": "濃",
+			"62": "洛",
+			"66": {
+				"74": "濮"
+			},
+			"70": {
+				"14": "濕",
+				"44": "冲",
+				"46": "濱",
+				"92": "沒",
+				"120": "滯",
+				"126": "决",
+				"172": "瀧",
+				"216": "灣",
+				"232": "澁",
+				"236": "淺",
+				"254": "滿"
+			},
+			"72": "泡",
+			"74": "液",
+			"76": "滋",
+			"78": "漂",
+			"80": {
+				"10": "汕"
+			},
+			"82": {
+				"60": "渤",
+				"106": "湧",
+				"216": "瀟"
+			},
+			"84": {
+				"106": "潘",
+				"248": "湫"
+			},
+			"88": "浪",
+			"90": "沼",
+			"92": "没",
+			"94": "票",
+			"98": {
+				"140": "渭"
+			},
+			"102": {
+				"232": "澪"
+			},
+			"104": "漸",
+			"106": "溶",
+			"108": "渡",
+			"110": "池",
+			"112": {
+				"158": "濂",
+				"252": "溏"
+			},
+			"114": {
+				"104": "涜",
+				"156": "溘"
+			},
+			"116": {
+				"204": "渚",
+				"216": "渥"
+			},
+			"118": {
+				"104": "浙"
+			},
+			"120": "滞",
+			"122": "塗",
+			"124": "澄",
+			"126": "決",
+			"128": {
+				"122": "澆",
+				"126": "渟",
+				"172": "淹",
+				"202": "淌"
+			},
+			"130": {
+				"24": "洲"
+			},
+			"134": {
+				"28": "淅",
+				"40": "沫",
+				"90": "溂",
+				"142": "淋",
+				"204": "渣",
+				"254": "湘"
+			},
+			"138": "河",
+			"140": "温",
+			"142": "漆",
+			"146": {
+				"14": "灘"
+			},
+			"148": {
+				"10": "汞",
+				"92": "澱",
+				"232": "瀝"
+			},
+			"150": {
+				"28": "泱",
+				"46": "潴",
+				"158": "湊"
+			},
+			"152": "泥",
+			"154": "流",
+			"156": "法",
+			"158": "涙",
+			"160": {
+				"58": "泗",
+				"126": "汀"
+			},
+			"164": {
+				"156": "淞"
+			},
+			"166": {
+				"60": "溽"
+			},
+			"168": "湯",
+			"170": "港",
+			"172": "滝",
+			"174": "洩",
+			"178": {
+				"142": "滌",
+				"172": "濾"
+			},
+			"180": {
+				"56": "漉",
+				"88": "瀁"
+			},
+			"182": {
+				"44": "瀞"
+			},
+			"184": "激",
+			"186": "深",
+			"188": "消",
+			"190": "活",
+			"192": {
+				"12": "洸",
+				"42": "涓",
+				"60": "潦",
+				"90": "渕",
+				"106": "瀘",
+				"122": "涌",
+				"138": "瀏",
+				"140": "渙",
+				"188": "濠",
+				"204": "溟",
+				"216": "渝",
+				"232": "沚",
+				"250": "浚",
+				"254": "濬"
+			},
+			"194": {
+				"10": "涎",
+				"14": "湃",
+				"72": "游",
+				"232": "汳"
+			},
+			"196": {
+				"60": "潭",
+				"104": "潁",
+				"136": "沓",
+				"156": "瀑",
+				"184": "湶",
+				"186": "洵",
+				"222": "湟"
+			},
+			"198": {
+				"250": "漣"
+			},
+			"200": "洗",
+			"202": "海",
+			"204": "潮",
+			"206": "波",
+			"208": {
+				"10": "泓",
+				"44": "涕",
+				"74": "洟",
+				"124": "漲",
+				"216": "溺"
+			},
+			"210": {
+				"62": "洳",
+				"170": "淒"
+			},
+			"212": {
+				"10": "汐",
+				"90": "洌",
+				"188": "渺",
+				"200": "淤"
+			},
+			"214": {
+				"10": "汪",
+				"12": "漿",
+				"174": "涛"
+			},
+			"216": "湾",
+			"218": "要",
+			"220": "浦",
+			"222": "注",
+			"224": {
+				"12": "滷",
+				"28": "瀕"
+			},
+			"226": {
+				"46": "潼"
+			},
+			"228": {
+				"56": "灑",
+				"60": "涸",
+				"74": "泅",
+				"92": "澳",
+				"124": "洞",
+				"206": "滬",
+				"234": "涵",
+				"254": "濔"
+			},
+			"230": {
+				"232": "泯"
+			},
+			"232": "渋",
+			"234": "泣",
+			"236": "浅",
+			"244": {
+				"136": "洶",
+				"206": "瀾"
+			},
+			"246": {
+				"24": "湎",
+				"140": "淆"
+			},
+			"248": "淡",
+			"250": "溝",
+			"252": "汽",
+			"254": "満"
+		},
+		"75": "人",
+		"77": "系",
+		"79": "水",
+		"81": {
+			"2": {
+				"232": "岻",
+				"254": "癲"
+			},
+			"10": "山",
+			"12": "矢",
+			"14": "症",
+			"16": {
+				"58": "疳",
+				"76": "岌",
+				"90": "屶",
+				"204": "疸",
+				"236": "戳"
+			},
+			"18": {
+				"14": "崔",
+				"28": "巍",
+				"30": "巒",
+				"46": "岔",
+				"56": "崑",
+				"58": "崙",
+				"122": "崖",
+				"138": "崋",
+				"154": "嵎",
+				"158": "嵜",
+				"186": "崚",
+				"188": "嵳",
+				"190": "嶌",
+				"204": "岶",
+				"218": "妛",
+				"234": "嶂",
+				"250": "峻"
+			},
+			"20": {
+				"60": "瘁",
+				"78": "嵬",
+				"126": "巓",
+				"168": "癩"
+			},
+			"26": "峠",
+			"28": "嶺",
+			"30": "痩",
+			"32": {
+				"188": "岨"
+			},
+			"34": {
+				"106": "瘤"
+			},
+			"36": {
+				"24": "嶼",
+				"26": "疹",
+				"58": "瘻",
+				"88": "痕",
+				"92": "矯",
+				"120": "癡",
+				"122": "嶢",
+				"138": "崟",
+				"140": "瘟",
+				"152": "疣",
+				"158": "痙",
+				"186": "癈",
+				"188": "疽",
+				"190": "雉",
+				"218": "痿",
+				"220": "峯",
+				"236": "峩"
+			},
+			"38": {
+				"10": "岑",
+				"28": "瘡",
+				"138": "岼",
+				"222": "痊",
+				"236": "峇"
+			},
+			"40": "疾",
+			"42": "崩",
+			"46": "嶮",
+			"48": {
+				"24": "疵",
+				"30": "嵩"
+			},
+			"54": {
+				"26": "嵒",
+				"124": "岾"
+			},
+			"60": "療",
+			"62": "知",
+			"64": {
+				"218": "肄"
+			},
+			"74": "峡",
+			"78": "濯",
+			"80": {
+				"10": "疝",
+				"74": "峽",
+				"120": "嶷",
+				"184": "巖",
+				"216": "瘉"
+			},
+			"82": {
+				"44": "巉",
+				"62": "痂"
+			},
+			"84": {
+				"104": "癪",
+				"218": "矮"
+			},
+			"88": "痴",
+			"90": "痢",
+			"92": "疫",
+			"94": "崇",
+			"98": {
+				"10": "峪",
+				"24": "岫",
+				"76": "瘰",
+				"170": "痺"
+			},
+			"102": {
+				"10": "癨"
+			},
+			"108": "嶽",
+			"110": "墾",
+			"114": {
+				"172": "痣",
+				"174": "峙"
+			},
+			"116": {
+				"222": "崛"
+			},
+			"120": "疑",
+			"122": "痛",
+			"124": "痘",
+			"132": {
+				"152": "瘠"
+			},
+			"134": {
+				"142": "痳"
+			},
+			"138": "岸",
+			"144": {
+				"44": "疥",
+				"236": "岱"
+			},
+			"148": {
+				"92": "癜",
+				"232": "癧"
+			},
+			"152": "既",
+			"156": "岬",
+			"158": "崎",
+			"160": {
+				"104": "乢",
+				"126": "疔",
+				"234": "癘"
+			},
+			"162": {
+				"138": "痾",
+				"190": "嶐"
+			},
+			"164": {
+				"234": "痲"
+			},
+			"168": "瘍",
+			"170": "郎",
+			"172": "懇",
+			"174": "痔",
+			"178": {
+				"10": "疼",
+				"24": "疚",
+				"124": "嶝",
+				"138": "瘧"
+			},
+			"180": {
+				"44": "崢",
+				"88": "癢",
+				"140": "峭",
+				"156": "嵯",
+				"236": "嶬"
+			},
+			"182": {
+				"10": "嶋",
+				"188": "癬"
+			},
+			"184": "巌",
+			"186": "矩",
+			"188": "痒",
+			"192": {
+				"28": "屹",
+				"58": "崘",
+				"76": "痃",
+				"90": "癆",
+				"122": "崕"
+			},
+			"196": {
+				"10": "皚",
+				"74": "峺"
+			},
+			"200": "凱",
+			"202": "岐",
+			"204": "智",
+			"206": "疲",
+			"208": {
+				"24": "矧",
+				"74": "痍",
+				"216": "嵶"
+			},
+			"210": {
+				"92": "瘢",
+				"236": "痞"
+			},
+			"216": "癒",
+			"220": "峰",
+			"224": {
+				"92": "齦"
+			},
+			"226": {
+				"60": "瘴"
+			},
+			"228": {
+				"10": "峨",
+				"60": "痼",
+				"206": "癰",
+				"216": "崗"
+			},
+			"230": {
+				"232": "岷"
+			},
+			"232": "嵌",
+			"234": "癖",
+			"236": "癌",
+			"240": {
+				"248": "痰"
+			},
+			"242": {
+				"44": "瘋",
+				"104": "嶄",
+				"124": "峅"
+			},
+			"244": {
+				"12": "疱",
+				"42": "癇",
+				"72": "嶇"
+			},
+			"246": {
+				"44": "覬",
+				"190": "嵋"
+			},
+			"248": "炭",
+			"250": "嵐"
+		},
+		"83": {
+			"2": {
+				"140": "衂"
+			},
+			"16": {
+				"168": "刎"
+			},
+			"28": "負",
+			"34": {
+				"90": "剪"
+			},
+			"36": {
+				"88": "剴",
+				"124": "舁",
+				"126": "刔",
+				"156": "刧",
+				"158": "刳",
+				"172": "懃",
+				"190": "飭",
+				"222": "刪",
+				"234": "劈"
+			},
+			"42": "脅",
+			"44": "免",
+			"54": {
+				"190": "刮"
+			},
+			"60": "勃",
+			"62": "加",
+			"70": {
+				"94": "剽"
+			},
+			"82": {
+				"168": "敕",
+				"216": "肅",
+				"234": "勵",
+				"236": "劭",
+				"248": "勳"
+			},
+			"90": "勉",
+			"92": "毀",
+			"98": {
+				"90": "舅"
+			},
+			"104": "賀",
+			"106": "勇",
+			"108": "努",
+			"114": {
+				"62": "劼",
+				"156": "劫"
+			},
+			"116": {
+				"44": "剳"
+			},
+			"122": "型",
+			"126": "揃",
+			"130": {
+				"142": "勦"
+			},
+			"140": "盆",
+			"142": "勤",
+			"150": {
+				"138": "剞"
+			},
+			"158": "契",
+			"160": {
+				"190": "刋"
+			},
+			"168": "勅",
+			"172": "忍",
+			"188": "助",
+			"192": {
+				"62": "勍"
+			},
+			"196": {
+				"168": "剔"
+			},
+			"202": "畔",
+			"208": {
+				"44": "剃"
+			},
+			"210": {
+				"106": "劃"
+			},
+			"214": {
+				"104": "勣"
+			},
+			"216": "粛",
+			"224": {
+				"92": "齧"
+			},
+			"234": "励",
+			"236": "召",
+			"242": {
+				"12": "勠"
+			},
+			"244": {
+				"40": "劬"
+			},
+			"248": "勲"
+		},
+		"85": {
+			"2": {
+				"90": "籾",
+				"142": "糂",
+				"186": "秬",
+				"188": "糟"
+			},
+			"10": "米",
+			"14": "稚",
+			"16": {
+				"14": "黐",
+				"138": "稈",
+				"142": "稘"
+			},
+			"18": {
+				"56": "粃",
+				"94": "粽",
+				"106": "穃"
+			},
+			"20": {
+				"78": "魏"
+			},
+			"24": "稲",
+			"26": "糎",
+			"28": "粁",
+			"30": "稿",
+			"36": {
+				"26": "糘",
+				"28": "穎",
+				"42": "糊",
+				"56": "秕",
+				"60": "籵",
+				"78": "粱",
+				"124": "穉",
+				"170": "粲",
+				"188": "麟",
+				"190": "鷭",
+				"200": "禿",
+				"206": "糒",
+				"236": "穡",
+				"254": "龝"
+			},
+			"38": {
+				"138": "秤",
+				"172": "稔",
+				"236": "粭"
+			},
+			"40": "秘",
+			"44": "税",
+			"46": "種",
+			"48": {
+				"30": "稾",
+				"74": "糴",
+				"88": "粮",
+				"222": "糶",
+				"254": "穐"
+			},
+			"52": {
+				"108": "秡",
+				"254": "稙"
+			},
+			"54": {
+				"124": "黏"
+			},
+			"58": "穏",
+			"60": "粋",
+			"62": "和",
+			"72": "禾",
+			"76": "秀",
+			"78": "粍",
+			"84": {
+				"24": "稻",
+				"40": "祕",
+				"58": "穩",
+				"60": "粹",
+				"94": "剩",
+				"142": "乘",
+				"200": "稱",
+				"238": "穰",
+				"250": "穗"
+			},
+			"90": "利",
+			"94": "剰",
+			"98": {
+				"24": "釉",
+				"156": "糞"
+			},
+			"102": {
+				"92": "糯"
+			},
+			"104": "積",
+			"106": "番",
+			"112": {
+				"216": "糠"
+			},
+			"122": "粧",
+			"124": "科",
+			"128": {
+				"92": "粫",
+				"138": "甃",
+				"154": "糢"
+			},
+			"130": {
+				"42": "骰"
+			},
+			"134": {
+				"40": "秣",
+				"120": "糅"
+			},
+			"138": "糧",
+			"140": "盤",
+			"142": "乗",
+			"146": {
+				"56": "糀"
+			},
+			"150": {
+				"28": "秧"
+			},
+			"152": "稽",
+			"154": "穫",
+			"156": "季",
+			"158": "秩",
+			"160": {
+				"234": "糲",
+				"254": "粨"
+			},
+			"164": {
+				"234": "糜"
+			},
+			"168": "黎",
+			"172": "愁",
+			"174": "耐",
+			"176": {
+				"232": "粢"
+			},
+			"180": {
+				"56": "麋",
+				"140": "稍"
+			},
+			"186": "稜",
+			"188": "租",
+			"190": "精",
+			"192": {
+				"124": "粐"
+			},
+			"196": {
+				"10": "粕",
+				"74": "粳"
+			},
+			"200": "称",
+			"204": "香",
+			"212": {
+				"188": "穆"
+			},
+			"218": "委",
+			"220": "移",
+			"222": "程",
+			"228": {
+				"62": "稟",
+				"122": "稠",
+				"124": "粡"
+			},
+			"232": "穢",
+			"234": "粒",
+			"236": "粘",
+			"238": "穣",
+			"246": {
+				"174": "稀"
+			},
+			"248": "秋",
+			"250": "穂",
+			"252": "糖"
+		},
+		"87": {
+			"2": {
+				"120": "袤",
+				"232": "祇"
+			},
+			"10": "衣",
+			"16": {
+				"142": "祺",
+				"204": "袒",
+				"248": "裴"
+			},
+			"18": {
+				"26": "袗",
+				"126": "襷",
+				"200": "裃"
+			},
+			"20": {
+				"10": "裙"
+			},
+			"24": "袖",
+			"26": "形",
+			"30": "裔",
+			"36": {
+				"26": "衫",
+				"28": "頴",
+				"58": "褸",
+				"62": "褝",
+				"122": "袿",
+				"126": "袂",
+				"140": "褞",
+				"142": "祀",
+				"158": "袴",
+				"170": "祚",
+				"190": "鵲",
+				"204": "衵",
+				"216": "裄",
+				"222": "褊",
+				"232": "祗",
+				"234": "襞",
+				"238": "禳"
+			},
+			"38": {
+				"10": "衾",
+				"236": "袷"
+			},
+			"44": "祝",
+			"48": {
+				"46": "裡",
+				"202": "袰",
+				"222": "祟"
+			},
+			"52": {
+				"78": "裘",
+				"202": "袢"
+			},
+			"54": {
+				"62": "襌"
+			},
+			"60": "嚢",
+			"62": "禅",
+			"66": {
+				"62": "褓",
+				"158": "袱"
+			},
+			"74": "依",
+			"82": {
+				"62": "袈",
+				"158": "禊"
+			},
+			"86": {
+				"62": "禪",
+				"124": "禮",
+				"200": "袮",
+				"216": "隸",
+				"238": "祿"
+			},
+			"90": "初",
+			"94": "刑",
+			"96": {
+				"124": "禎"
+			},
+			"98": {
+				"142": "裹",
+				"170": "裨"
+			},
+			"102": {
+				"24": "裲",
+				"92": "襦"
+			},
+			"104": "祈",
+			"106": "裕",
+			"108": "祓",
+			"114": {
+				"62": "襭",
+				"122": "褂",
+				"236": "禧"
+			},
+			"116": {
+				"10": "裾"
+			},
+			"120": "祥",
+			"122": "社",
+			"124": "礼",
+			"126": "擦",
+			"128": {
+				"202": "裳"
+			},
+			"130": {
+				"142": "剿"
+			},
+			"134": {
+				"14": "襍",
+				"94": "襟"
+			},
+			"138": "禍",
+			"142": "裸",
+			"144": {
+				"78": "袵"
+			},
+			"152": "祠",
+			"160": {
+				"78": "衽"
+			},
+			"166": {
+				"60": "褥"
+			},
+			"168": "祐",
+			"170": "祭",
+			"172": "襲",
+			"174": "神",
+			"176": {
+				"220": "裟"
+			},
+			"178": {
+				"72": "褫",
+				"140": "襤",
+				"206": "襪"
+			},
+			"184": "褐",
+			"186": "複",
+			"188": "祖",
+			"192": {
+				"106": "禝",
+				"170": "祁",
+				"218": "襠"
+			},
+			"196": {
+				"10": "袙",
+				"168": "裼"
+			},
+			"198": {
+				"88": "褪"
+			},
+			"200": "祢",
+			"204": "衿",
+			"206": "被",
+			"208": {
+				"170": "禦",
+				"250": "襁"
+			},
+			"210": {
+				"170": "褄"
+			},
+			"216": "隷",
+			"218": "福",
+			"220": "補",
+			"222": "祷",
+			"226": {
+				"254": "襯"
+			},
+			"228": {
+				"62": "禀",
+				"92": "襖",
+				"152": "衲",
+				"254": "禰"
+			},
+			"232": "祉",
+			"236": "袋",
+			"238": "禄",
+			"242": {
+				"204": "褶"
+			},
+			"244": {
+				"12": "袍",
+				"206": "襴"
+			},
+			"250": "褌",
+			"254": "視"
+		},
+		"89": "病",
+		"91": "力",
+		"93": "私",
+		"95": "示",
+		"97": {
+			"4": {
+				"92": "貶"
+			},
+			"16": {
+				"74": "貽",
+				"122": "賍",
+				"126": "賻",
+				"236": "戝"
+			},
+			"26": "賽",
+			"28": "贄",
+			"36": {
+				"104": "贔",
+				"186": "贓",
+				"190": "鸚",
+				"204": "贍",
+				"236": "賤"
+			},
+			"38": {
+				"158": "賺"
+			},
+			"40": "具",
+			"42": "賄",
+			"46": "貪",
+			"48": {
+				"24": "貲"
+			},
+			"56": "貨",
+			"60": "財",
+			"62": "員",
+			"78": "賃",
+			"90": "則",
+			"92": "断",
+			"96": {
+				"92": "斷",
+				"104": "貭",
+				"158": "贊"
+			},
+			"104": "質",
+			"120": "貰",
+			"122": "贖",
+			"124": "貞",
+			"126": "貯",
+			"134": {
+				"74": "賚"
+			},
+			"142": "貴",
+			"156": "貢",
+			"158": "賛",
+			"168": "賜",
+			"178": {
+				"62": "賂"
+			},
+			"184": "敗",
+			"186": "賢",
+			"188": "贈",
+			"192": {
+				"170": "齎",
+				"190": "鵙"
+			},
+			"202": "貼",
+			"204": "賭",
+			"210": {
+				"248": "贐"
+			},
+			"220": "贅",
+			"228": {
+				"232": "贇"
+			},
+			"232": "販",
+			"234": "賠",
+			"236": "貸",
+			"238": "賊",
+			"250": "購"
+		},
+		"99": {
+			"10": "谷",
+			"14": "対",
+			"24": "由",
+			"32": {
+				"14": "畊"
+			},
+			"36": {
+				"26": "畛",
+				"184": "畋",
+				"186": "畆",
+				"188": "疂",
+				"190": "鴫",
+				"218": "嬲",
+				"222": "畴"
+			},
+			"38": {
+				"252": "畭"
+			},
+			"40": "曲",
+			"42": "胄",
+			"44": "界",
+			"46": "典",
+			"48": {
+				"140": "疉"
+			},
+			"54": {
+				"202": "咫"
+			},
+			"56": "毘",
+			"60": "農",
+			"62": "略",
+			"64": {
+				"158": "畉"
+			},
+			"74": "佃",
+			"76": "累",
+			"78": "沢",
+			"86": {
+				"10": "畩"
+			},
+			"90": "男",
+			"92": "釈",
+			"94": "畏",
+			"98": {
+				"14": "對",
+				"62": "畧",
+				"78": "澤",
+				"92": "釋",
+				"122": "壘",
+				"124": "豐",
+				"174": "艷",
+				"188": "疊",
+				"204": "晝",
+				"250": "飜"
+			},
+			"108": "畷",
+			"110": "笛",
+			"114": {
+				"174": "畤"
+			},
+			"122": "塁",
+			"124": "豊",
+			"126": "町",
+			"138": "畢",
+			"140": "胃",
+			"142": "果",
+			"144": {
+				"44": "畍"
+			},
+			"150": {
+				"138": "畸"
+			},
+			"154": "苗",
+			"156": "異",
+			"158": "猥",
+			"160": {
+				"126": "甼"
+			},
+			"170": "卑",
+			"172": "思",
+			"174": "艶",
+			"184": "油",
+			"186": "畝",
+			"188": "畳",
+			"190": "鵯",
+			"204": "昼",
+			"214": {
+				"174": "疇"
+			},
+			"220": "夥",
+			"232": "欲",
+			"236": "冑",
+			"250": "翻"
+		},
+		"101": {
+			"14": "証",
+			"24": "詠",
+			"26": "診",
+			"36": {
+				"168": "讎",
+				"188": "聚"
+			},
+			"44": "誂",
+			"46": "詮",
+			"48": {
+				"206": "諫"
+			},
+			"58": "謀",
+			"60": "訊",
+			"62": "詰",
+			"74": "詫",
+			"76": "該",
+			"78": "詣",
+			"90": "認",
+			"100": {
+				"14": "證",
+				"106": "譯",
+				"108": "雙",
+				"238": "讓"
+			},
+			"104": "訴",
+			"106": "訳",
+			"108": "双",
+			"122": "調",
+			"126": "訣",
+			"138": "訓",
+			"142": "謹",
+			"156": "訟",
+			"158": "謙",
+			"168": "讐",
+			"172": "誌",
+			"174": "詩",
+			"188": "詳",
+			"190": "請",
+			"202": "誨",
+			"204": "諸",
+			"206": "諌",
+			"216": "諛",
+			"220": "謗",
+			"232": "諮",
+			"234": "諳",
+			"236": "試",
+			"238": "譲",
+			"248": "誹",
+			"250": "講"
+		},
+		"103": {
+			"2": {
+				"28": "笂"
+			},
+			"4": {
+				"250": "簒"
+			},
+			"10": "雨",
+			"16": {
+				"14": "霍",
+				"58": "箝",
+				"74": "笞",
+				"76": "笈",
+				"142": "箕",
+				"152": "笥",
+				"168": "笏",
+				"206": "簸",
+				"236": "箋",
+				"248": "霏"
+			},
+			"18": {
+				"14": "籬",
+				"142": "箜"
+			},
+			"20": {
+				"168": "籟"
+			},
+			"24": "両",
+			"26": "彩",
+			"28": "斧",
+			"30": "雲",
+			"32": {
+				"74": "筴",
+				"206": "笆"
+			},
+			"34": {
+				"76": "箙",
+				"90": "箭",
+				"106": "霤"
+			},
+			"36": {
+				"14": "竺",
+				"42": "霸",
+				"46": "箒",
+				"56": "箆",
+				"58": "簍",
+				"74": "篋",
+				"78": "霑",
+				"92": "霞",
+				"94": "簑",
+				"106": "篳",
+				"124": "笄",
+				"126": "箍",
+				"142": "簗",
+				"168": "籔",
+				"170": "笵",
+				"172": "悉",
+				"174": "霈",
+				"184": "靄",
+				"188": "篆",
+				"190": "鵁",
+				"204": "簪",
+				"218": "籘",
+				"222": "篇",
+				"232": "篶",
+				"234": "霹",
+				"236": "筏",
+				"238": "籤",
+				"250": "篝"
+			},
+			"38": {
+				"222": "筌",
+				"236": "箚"
+			},
+			"42": "管",
+			"46": "雰",
+			"48": {
+				"46": "霾",
+				"200": "雫"
+			},
+			"54": {
+				"62": "箪",
+				"124": "笘"
+			},
+			"60": "震",
+			"62": "箇",
+			"74": "符",
+			"76": "纂",
+			"80": {
+				"12": "笶"
+			},
+			"82": {
+				"62": "笳",
+				"216": "簫"
+			},
+			"88": "爺",
+			"90": "効",
+			"92": "需",
+			"94": "籍",
+			"96": {
+				"142": "簣"
+			},
+			"98": {
+				"110": "籥"
+			},
+			"102": {
+				"24": "兩",
+				"90": "效",
+				"152": "靈"
+			},
+			"104": "乳",
+			"106": "雷",
+			"112": {
+				"158": "簾"
+			},
+			"114": {
+				"200": "筅"
+			},
+			"120": "霧",
+			"124": "筒",
+			"126": "簿",
+			"128": {
+				"14": "笋",
+				"46": "簽",
+				"238": "筥"
+			},
+			"132": {
+				"122": "笊"
+			},
+			"134": {
+				"136": "笨",
+				"142": "霖"
+			},
+			"138": "竿",
+			"140": "筋",
+			"142": "霜",
+			"144": {
+				"88": "篌",
+				"170": "筰",
+				"216": "筱",
+				"218": "筮"
+			},
+			"146": {
+				"28": "霙"
+			},
+			"148": {
+				"44": "霓",
+				"232": "靂"
+			},
+			"152": "霊",
+			"154": "筑",
+			"156": "筍",
+			"158": "笑",
+			"162": {
+				"200": "霽"
+			},
+			"164": {
+				"78": "篥"
+			},
+			"166": {
+				"42": "篩",
+				"156": "簧"
+			},
+			"168": "策",
+			"170": "節",
+			"172": "電",
+			"174": "等",
+			"176": {
+				"78": "霪",
+				"204": "箔"
+			},
+			"178": {
+				"140": "籃"
+			},
+			"180": {
+				"44": "箏",
+				"140": "霄"
+			},
+			"182": {
+				"14": "笙",
+				"206": "筬"
+			},
+			"184": "霰",
+			"188": "篤",
+			"190": "雪",
+			"192": {
+				"10": "靉",
+				"42": "籀",
+				"56": "篦",
+				"94": "簔",
+				"188": "筝",
+				"204": "簷",
+				"222": "筺",
+				"236": "箘",
+				"238": "籖"
+			},
+			"194": {
+				"10": "筵",
+				"222": "霆"
+			},
+			"196": {
+				"56": "箟",
+				"60": "簟",
+				"222": "篁"
+			},
+			"198": {
+				"72": "箴",
+				"216": "靆",
+				"220": "篷"
+			},
+			"200": "築",
+			"204": "簡",
+			"210": {
+				"234": "霎"
+			},
+			"212": {
+				"88": "簇",
+				"142": "籏"
+			},
+			"214": {
+				"10": "筐",
+				"104": "簀",
+				"174": "籌"
+			},
+			"216": "第",
+			"218": "筆",
+			"224": {
+				"10": "篏"
+			},
+			"226": {
+				"172": "籠"
+			},
+			"228": {
+				"26": "簓"
+			},
+			"232": "零",
+			"234": "笠",
+			"236": "答",
+			"238": "露",
+			"246": {
+				"44": "筧"
+			},
+			"250": "範",
+			"252": "雹",
+			"254": "箱"
+		},
+		"105": "貝",
+		"107": "田",
+		"109": "語",
+		"111": "竹",
+		"113": {
+			"2": {
+				"10": "厂"
+			},
+			"10": "原",
+			"14": "産",
+			"18": {
+				"190": "鶩"
+			},
+			"20": {
+				"78": "魘",
+				"186": "厦"
+			},
+			"26": "彦",
+			"28": "願",
+			"32": {
+				"124": "厨"
+			},
+			"36": {
+				"26": "厖",
+				"90": "廁",
+				"92": "廏",
+				"106": "廬",
+				"124": "廚",
+				"142": "厮",
+				"152": "厩",
+				"170": "卮",
+				"184": "厰",
+				"186": "廈",
+				"188": "庠",
+				"190": "鷹",
+				"206": "巵"
+			},
+			"38": {
+				"10": "矜"
+			},
+			"42": "厭",
+			"46": "厘",
+			"52": {
+				"140": "廟"
+			},
+			"56": "庇",
+			"58": "庵",
+			"60": "庁",
+			"62": "后",
+			"72": "广",
+			"74": "座",
+			"78": "魔",
+			"80": {
+				"152": "廐"
+			},
+			"88": "廊",
+			"90": "務",
+			"96": {
+				"90": "厠"
+			},
+			"104": "贋",
+			"106": "蛋",
+			"108": "度",
+			"112": {
+				"60": "廳",
+				"122": "壓",
+				"142": "牀",
+				"156": "廣",
+				"172": "應",
+				"184": "嚴",
+				"186": "廢"
+			},
+			"120": "序",
+			"122": "圧",
+			"124": "庶",
+			"126": "摩",
+			"128": {
+				"202": "廠"
+			},
+			"134": {
+				"254": "廂"
+			},
+			"140": "腐",
+			"142": "床",
+			"152": "坐",
+			"154": "疏",
+			"156": "広",
+			"158": "廉",
+			"162": {
+				"156": "廓"
+			},
+			"166": {
+				"154": "廛"
+			},
+			"168": "疎",
+			"170": "厄",
+			"172": "応",
+			"174": "府",
+			"182": {
+				"10": "鷸"
+			},
+			"184": "厳",
+			"186": "廃",
+			"190": "席",
+			"192": {
+				"142": "廝",
+				"190": "鴈"
+			},
+			"204": "厚",
+			"216": "康",
+			"222": "庭",
+			"224": {
+				"10": "厥"
+			},
+			"228": {
+				"62": "廩",
+				"188": "廨",
+				"206": "廱"
+			},
+			"232": "底",
+			"234": "磨",
+			"236": "庸",
+			"242": {
+				"12": "廖",
+				"248": "廡"
+			},
+			"244": {
+				"12": "庖"
+			},
+			"246": {
+				"24": "靨"
+			},
+			"248": "灰",
+			"250": "庫",
+			"252": "唐",
+			"254": "盾"
+		},
+		"115": {
+			"2": {
+				"10": "壼",
+				"254": "填"
+			},
+			"10": "士",
+			"14": "堆",
+			"16": {
+				"58": "坩",
+				"204": "坦",
+				"206": "坡",
+				"216": "垤",
+				"218": "坏"
+			},
+			"18": {
+				"46": "竇"
+			},
+			"20": {
+				"60": "埣"
+			},
+			"24": "域",
+			"26": "塚",
+			"28": "執",
+			"32": {
+				"76": "垓",
+				"174": "坤"
+			},
+			"34": {
+				"42": "堋"
+			},
+			"36": {
+				"10": "壷",
+				"62": "垢",
+				"88": "垠",
+				"120": "壥",
+				"122": "圭",
+				"124": "卦",
+				"138": "堝",
+				"140": "盍",
+				"172": "恚",
+				"190": "燕",
+				"204": "堵",
+				"206": "壅",
+				"216": "垳",
+				"220": "埔",
+				"222": "塀",
+				"252": "堰"
+			},
+			"38": {
+				"120": "墅"
+			},
+			"42": "堕",
+			"44": "坑",
+			"46": "埋",
+			"48": {
+				"26": "垰",
+				"30": "塙",
+				"74": "圦",
+				"78": "堙",
+				"104": "圻",
+				"200": "圷"
+			},
+			"52": {
+				"254": "埴"
+			},
+			"58": "壊",
+			"62": "吉",
+			"66": {
+				"62": "堡",
+				"174": "坿"
+			},
+			"70": {
+				"202": "塰"
+			},
+			"74": "境",
+			"76": "報",
+			"78": "塊",
+			"80": {
+				"10": "圸"
+			},
+			"90": "嘉",
+			"92": "穀",
+			"94": "装",
+			"98": {
+				"10": "壑",
+				"44": "堺"
+			},
+			"104": "売",
+			"106": "畦",
+			"108": "殻",
+			"110": "地",
+			"112": {
+				"156": "壙",
+				"252": "塘"
+			},
+			"114": {
+				"42": "墮",
+				"58": "壞",
+				"94": "裝",
+				"104": "賣",
+				"108": "殼",
+				"140": "鹽",
+				"168": "塲",
+				"222": "埓",
+				"238": "壤"
+			},
+			"116": {
+				"154": "墸"
+			},
+			"120": "堤",
+			"122": "封",
+			"124": "堀",
+			"126": "捏",
+			"134": {
+				"142": "埜"
+			},
+			"138": "幸",
+			"140": "塩",
+			"142": "堪",
+			"144": {
+				"236": "垈"
+			},
+			"146": {
+				"56": "埖"
+			},
+			"154": "塔",
+			"156": "去",
+			"158": "埼",
+			"162": {
+				"218": "埠"
+			},
+			"168": "場",
+			"170": "却",
+			"172": "志",
+			"174": "寺",
+			"178": {
+				"248": "墟"
+			},
+			"180": {
+				"56": "塵"
+			},
+			"182": {
+				"26": "塢",
+				"174": "墫"
+			},
+			"186": "堅",
+			"188": "増",
+			"192": {
+				"10": "壺",
+				"124": "垪",
+				"188": "壕",
+				"190": "鷙"
+			},
+			"196": {
+				"110": "壜",
+				"174": "塒"
+			},
+			"200": "先",
+			"202": "塑",
+			"204": "垣",
+			"206": "城",
+			"210": {
+				"248": "壗"
+			},
+			"218": "墳",
+			"220": "坊",
+			"222": "埒",
+			"224": {
+				"10": "坎"
+			},
+			"226": {
+				"172": "壟"
+			},
+			"228": {
+				"62": "墻",
+				"92": "墺",
+				"136": "埆"
+			},
+			"232": "坂",
+			"234": "培",
+			"236": "喜",
+			"238": "壌",
+			"242": {
+				"12": "翹",
+				"104": "塹"
+			},
+			"244": {
+				"12": "垉",
+				"204": "墹"
+			},
+			"250": "埃",
+			"252": "均"
+		},
+		"117": {
+			"2": {
+				"90": "靭",
+				"108": "靫"
+			},
+			"10": "居",
+			"12": "老",
+			"14": "雇",
+			"16": {
+				"78": "耆",
+				"110": "髢",
+				"190": "耄",
+				"204": "靼",
+				"206": "鞁",
+				"216": "耋",
+				"248": "扉"
+			},
+			"18": {
+				"58": "鬟",
+				"90": "剏",
+				"186": "鬚",
+				"200": "鞐",
+				"234": "鬘"
+			},
+			"26": "髪",
+			"28": "顧",
+			"36": {
+				"62": "髭",
+				"90": "勒",
+				"104": "屓",
+				"122": "鞋",
+				"124": "屏",
+				"152": "丱",
+				"156": "孱",
+				"184": "鞨",
+				"186": "豎",
+				"190": "鳶",
+				"202": "屐",
+				"206": "鞴",
+				"218": "肆",
+				"220": "髣",
+				"222": "扁"
+			},
+			"38": {
+				"92": "彜",
+				"236": "鞳"
+			},
+			"40": "考",
+			"42": "覇",
+			"44": "髯",
+			"56": "屁",
+			"58": "屡",
+			"60": "革",
+			"62": "啓",
+			"78": "尿",
+			"82": {
+				"236": "髫"
+			},
+			"84": {
+				"10": "屎",
+				"248": "鞦"
+			},
+			"88": "短",
+			"90": "靱",
+			"92": "料",
+			"94": "尉",
+			"98": {
+				"40": "髷"
+			},
+			"104": "所",
+			"106": "届",
+			"110": "箸",
+			"114": {
+				"62": "髻"
+			},
+			"116": {
+				"26": "髮",
+				"106": "屆",
+				"202": "皷",
+				"238": "屬",
+				"248": "爐"
+			},
+			"124": "展",
+			"126": "拷",
+			"128": {
+				"254": "髴"
+			},
+			"134": {
+				"40": "靺",
+				"120": "鞣"
+			},
+			"136": "尸",
+			"138": "瓶",
+			"140": "肩",
+			"144": {
+				"56": "靴",
+				"74": "鞭"
+			},
+			"150": {
+				"28": "鞅",
+				"40": "鬣"
+			},
+			"152": "尼",
+			"154": "著",
+			"156": "孝",
+			"158": "戻",
+			"160": {
+				"222": "鞆"
+			},
+			"164": {
+				"12": "鞠",
+				"156": "鬆"
+			},
+			"168": "尻",
+			"172": "慰",
+			"174": "屍",
+			"178": {
+				"10": "鼕",
+				"206": "韈"
+			},
+			"180": {
+				"140": "鞘"
+			},
+			"184": "教",
+			"186": "履",
+			"188": "層",
+			"190": "尾",
+			"192": {
+				"92": "彝",
+				"190": "鷓"
+			},
+			"194": {
+				"170": "韆"
+			},
+			"198": {
+				"106": "韃"
+			},
+			"200": "鬢",
+			"202": "鼓",
+			"204": "者",
+			"214": {
+				"122": "弉"
+			},
+			"216": "屋",
+			"218": "鞍",
+			"220": "房",
+			"222": "屈",
+			"228": {
+				"152": "靹",
+				"206": "扈"
+			},
+			"230": {
+				"78": "鞜"
+			},
+			"236": "戒",
+			"238": "属",
+			"244": {
+				"12": "鞄"
+			},
+			"246": {
+				"44": "覩"
+			},
+			"248": "炉",
+			"250": "扇",
+			"252": "局"
+		},
+		"119": {
+			"2": {
+				"90": "扨",
+				"104": "拆",
+				"108": "扠",
+				"216": "擾"
+			},
+			"14": "推",
+			"16": {
+				"58": "拑",
+				"74": "擡",
+				"90": "挈",
+				"120": "抒",
+				"126": "摶",
+				"138": "捍",
+				"156": "拱",
+				"206": "披",
+				"218": "抔",
+				"236": "找"
+			},
+			"18": {
+				"26": "摎",
+				"74": "抬",
+				"90": "抛",
+				"104": "擯",
+				"120": "掟"
+			},
+			"24": "抽",
+			"26": "操",
+			"28": "摘",
+			"30": "捜",
+			"32": {
+				"74": "挾",
+				"174": "抻"
+			},
+			"34": {
+				"138": "捷",
+				"184": "撒"
+			},
+			"36": {
+				"14": "摧",
+				"42": "捐",
+				"44": "挽",
+				"46": "扮",
+				"60": "撩",
+				"62": "揖",
+				"74": "挟",
+				"78": "捶",
+				"88": "擢",
+				"90": "拐",
+				"92": "揣",
+				"104": "撕",
+				"106": "扣",
+				"110": "擶",
+				"122": "挂",
+				"124": "掏",
+				"126": "抉",
+				"138": "扞",
+				"142": "擒",
+				"152": "托",
+				"154": "摸",
+				"156": "撰",
+				"170": "擲",
+				"186": "撥",
+				"188": "掾",
+				"190": "鴃",
+				"200": "撓",
+				"202": "搏",
+				"204": "搨",
+				"206": "把",
+				"216": "揄",
+				"234": "擘",
+				"236": "拭",
+				"238": "攘",
+				"250": "掻",
+				"252": "捫",
+				"254": "攪"
+			},
+			"38": {
+				"28": "搶",
+				"170": "掵",
+				"236": "拿"
+			},
+			"40": "拘",
+			"42": "撤",
+			"44": "抗",
+			"46": "掃",
+			"48": {
+				"124": "抖",
+				"200": "抃",
+				"202": "拇",
+				"204": "揩",
+				"206": "揀"
+			},
+			"52": {
+				"156": "拵",
+				"202": "拌"
+			},
+			"54": {
+				"94": "捌",
+				"124": "拈"
+			},
+			"56": "批",
+			"58": "捻",
+			"60": "振",
+			"62": "損",
+			"66": {
+				"174": "拊"
+			},
+			"68": {
+				"10": "拗"
+			},
+			"74": "撲",
+			"76": "扱",
+			"78": "指",
+			"80": {
+				"10": "攜"
+			},
+			"84": {
+				"24": "秉",
+				"106": "播"
+			},
+			"88": "擬",
+			"90": "招",
+			"92": "投",
+			"94": "措",
+			"96": {
+				"158": "攅"
+			},
+			"102": {
+				"106": "擂"
+			},
+			"104": "折",
+			"106": "択",
+			"108": "抜",
+			"110": "採",
+			"112": {
+				"152": "挫",
+				"170": "扼"
+			},
+			"114": {
+				"28": "摯",
+				"62": "拮"
+			},
+			"116": {
+				"10": "据",
+				"44": "搭",
+				"158": "捩"
+			},
+			"118": {
+				"30": "搜",
+				"106": "擇",
+				"108": "拔",
+				"138": "搖",
+				"156": "擴",
+				"204": "擔",
+				"238": "攝",
+				"254": "拂"
+			},
+			"120": "提",
+			"122": "掛",
+			"124": "掘",
+			"126": "打",
+			"128": {
+				"78": "拯"
+			},
+			"132": {
+				"122": "抓"
+			},
+			"134": {
+				"40": "抹",
+				"120": "揉",
+				"142": "攀"
+			},
+			"138": "揺",
+			"140": "換",
+			"142": "控",
+			"146": {
+				"14": "攤"
+			},
+			"148": {
+				"10": "扛"
+			},
+			"150": {
+				"138": "掎",
+				"152": "捺",
+				"170": "捲",
+				"220": "捧",
+				"248": "撚"
+			},
+			"152": "援",
+			"154": "描",
+			"156": "拡",
+			"158": "扶",
+			"160": {
+				"44": "挑",
+				"104": "扎",
+				"186": "揆"
+			},
+			"162": {
+				"200": "擠"
+			},
+			"164": {
+				"12": "掬"
+			},
+			"168": "揚",
+			"170": "抑",
+			"172": "掩",
+			"174": "持",
+			"178": {
+				"42": "擺",
+				"62": "挌"
+			},
+			"180": {
+				"156": "搓"
+			},
+			"182": {
+				"88": "搗"
+			},
+			"184": "掲",
+			"186": "探",
+			"188": "抄",
+			"190": "捨",
+			"192": {
+				"26": "搴",
+				"62": "掠",
+				"74": "掖",
+				"90": "撈",
+				"250": "搆",
+				"254": "撹"
+			},
+			"194": {
+				"222": "挺"
+			},
+			"196": {
+				"76": "擽",
+				"124": "掉"
+			},
+			"198": {
+				"106": "撻",
+				"172": "撼"
+			},
+			"200": "授",
+			"202": "技",
+			"204": "担",
+			"206": "擁",
+			"208": {
+				"216": "搦"
+			},
+			"210": {
+				"108": "拏"
+			},
+			"214": {
+				"10": "抂",
+				"174": "擣"
+			},
+			"216": "握",
+			"218": "按",
+			"220": "捕",
+			"222": "拙",
+			"224": {
+				"104": "掀"
+			},
+			"226": {
+				"10": "拉",
+				"46": "撞"
+			},
+			"228": {
+				"62": "擅",
+				"222": "掴"
+			},
+			"230": {
+				"12": "捉",
+				"108": "掫",
+				"170": "揶"
+			},
+			"232": "抵",
+			"234": "接",
+			"236": "拾",
+			"238": "摂",
+			"242": {
+				"12": "挧",
+				"204": "摺",
+				"248": "撫"
+			},
+			"244": {
+				"186": "擱"
+			},
+			"246": {
+				"186": "攬"
+			},
+			"248": "排",
+			"250": "揮",
+			"252": "抱",
+			"254": "払"
+		},
+		"121": "店",
+		"123": "土",
+		"125": "戸",
+		"127": "手",
+		"129": {
+			"14": "尹",
+			"16": {
+				"94": "劒"
+			},
+			"26": "宛",
+			"30": "袁",
+			"42": "胡",
+			"44": "兌",
+			"46": "僉",
+			"58": "婁",
+			"62": "鬲",
+			"74": "竟",
+			"78": "丞",
+			"90": "臼",
+			"92": "而",
+			"110": "采",
+			"120": "疋",
+			"122": "尭",
+			"124": "廾",
+			"126": "亭",
+			"128": {
+				"26": "彑",
+				"88": "鬯",
+				"110": "釆",
+				"152": "无",
+				"154": "屮",
+				"158": "夸",
+				"174": "曵",
+				"186": "乕",
+				"188": "豕",
+				"206": "柬",
+				"216": "彎"
+			},
+			"138": "瓦",
+			"140": "孟",
+			"152": "尤",
+			"154": "莫",
+			"156": "公",
+			"158": "失",
+			"170": "乍",
+			"172": "奄",
+			"174": "曳",
+			"184": "曷",
+			"188": "丑",
+			"200": "几",
+			"202": "尚",
+			"206": "戍",
+			"216": "弯",
+			"220": "甫",
+			"232": "焉",
+			"234": "辟",
+			"236": "亶",
+			"238": "呂",
+			"250": "矣",
+			"252": "芻",
+			"254": "弗"
+		},
+		"131": {
+			"2": {
+				"10": "錏",
+				"90": "釼",
+				"108": "釵",
+				"142": "鍖",
+				"172": "鐚",
+				"186": "鉅"
+			},
+			"10": "川",
+			"14": "錐",
+			"16": {
+				"58": "鉗",
+				"90": "釖",
+				"110": "釶",
+				"126": "甎",
+				"190": "瓱"
+			},
+			"18": {
+				"46": "窩",
+				"60": "瓧",
+				"106": "鎔",
+				"158": "鐡",
+				"204": "瓰"
+			},
+			"24": "州",
+			"28": "瓩",
+			"30": "鉛",
+			"32": {
+				"138": "銖",
+				"220": "鋩"
+			},
+			"34": {
+				"106": "錙"
+			},
+			"36": {
+				"10": "巛",
+				"14": "鐫",
+				"26": "鋺",
+				"28": "鏑",
+				"30": "鑾",
+				"44": "鏥",
+				"46": "鑰",
+				"58": "鏤",
+				"60": "鐐",
+				"62": "釦",
+				"74": "鋏",
+				"88": "鎧",
+				"90": "劉",
+				"92": "鑿",
+				"104": "鑽",
+				"106": "鐸",
+				"108": "錣",
+				"110": "釡",
+				"122": "鐃",
+				"124": "鈩",
+				"138": "鍋",
+				"140": "盂",
+				"158": "鍔",
+				"170": "鉚",
+				"184": "鐓",
+				"186": "鑪",
+				"190": "鶻",
+				"206": "鉈",
+				"216": "鍮",
+				"220": "鋪",
+				"234": "鏝",
+				"238": "鑷",
+				"252": "鈞",
+				"254": "錦"
+			},
+			"38": {
+				"28": "鎗",
+				"140": "鎰",
+				"222": "銓"
+			},
+			"40": "鈎",
+			"42": "骨",
+			"44": "鋭",
+			"46": "鐘",
+			"48": {
+				"30": "鎬",
+				"78": "甄",
+				"104": "釿",
+				"106": "鈬",
+				"138": "哥",
+				"218": "瓲"
+			},
+			"54": {
+				"60": "鈷",
+				"190": "銛"
+			},
+			"60": "針",
+			"62": "銘",
+			"74": "鏡",
+			"76": "骸",
+			"78": "錘",
+			"82": {
+				"188": "鋤"
+			},
+			"84": {
+				"76": "銹",
+				"106": "鐇",
+				"248": "鍬"
+			},
+			"88": "銀",
+			"90": "刊",
+			"92": "鍛",
+			"94": "錯",
+			"96": {
+				"158": "鑚"
+			},
+			"98": {
+				"170": "髀"
+			},
+			"104": "鎖",
+			"106": "拶",
+			"110": "釜",
+			"112": {
+				"46": "甅",
+				"108": "鍍"
+			},
+			"114": {
+				"186": "鏗"
+			},
+			"116": {
+				"10": "鋸",
+				"204": "赭"
+			},
+			"120": "錠",
+			"122": "銑",
+			"124": "銅",
+			"126": "釘",
+			"128": {
+				"156": "瓮",
+				"188": "鈕"
+			},
+			"130": {
+				"10": "釧",
+				"42": "骭",
+				"140": "鑒",
+				"156": "鑛",
+				"158": "鐵",
+				"174": "鑄",
+				"236": "錢",
+				"254": "鎭"
+			},
+			"136": "鉢",
+			"138": "赫",
+			"140": "鑑",
+			"142": "巣",
+			"146": {
+				"46": "鋲",
+				"56": "錵",
+				"220": "錺"
+			},
+			"154": "錨",
+			"156": "鉱",
+			"158": "鉄",
+			"160": {
+				"44": "銚",
+				"46": "釟",
+				"254": "瓸"
+			},
+			"168": "錫",
+			"174": "鋳",
+			"176": {
+				"232": "瓷"
+			},
+			"178": {
+				"14": "鑼",
+				"24": "鑁",
+				"62": "骼",
+				"124": "鐙",
+				"172": "鑢"
+			},
+			"180": {
+				"44": "錚",
+				"56": "鏖",
+				"140": "銷"
+			},
+			"184": "赦",
+			"190": "錆",
+			"192": {
+				"46": "鍾",
+				"58": "鐶",
+				"60": "鑞",
+				"62": "鍄",
+				"76": "鉉",
+				"90": "釛",
+				"92": "鍜",
+				"106": "鈿",
+				"158": "鑵",
+				"190": "鷂",
+				"206": "鉞",
+				"216": "銜",
+				"218": "鐺",
+				"234": "鉐"
+			},
+			"194": {
+				"42": "鑓",
+				"232": "鈑"
+			},
+			"196": {
+				"60": "鐔",
+				"76": "鑠",
+				"222": "鍠"
+			},
+			"198": {
+				"42": "鎚",
+				"72": "鍼",
+				"158": "鎹",
+				"250": "鏈"
+			},
+			"200": "銃",
+			"202": "鍵",
+			"204": "鈴",
+			"206": "錬",
+			"208": {
+				"74": "銕"
+			},
+			"212": {
+				"88": "鏃",
+				"188": "鈔"
+			},
+			"214": {
+				"12": "鏘"
+			},
+			"216": "鋼",
+			"218": "鈍",
+			"220": "鋒",
+			"224": {
+				"14": "鉦"
+			},
+			"228": {
+				"60": "錮",
+				"232": "錻"
+			},
+			"232": "歌",
+			"234": "鎌",
+			"236": "銭",
+			"238": "録",
+			"242": {
+				"12": "鏐",
+				"104": "鏨"
+			},
+			"244": {
+				"12": "鉋",
+				"40": "鉤"
+			},
+			"246": {
+				"106": "鼾",
+				"254": "钁"
+			},
+			"248": "災",
+			"250": "鉾",
+			"252": "釣",
+			"254": "鎮"
+		},
+		"133": {
+			"2": {
+				"232": "胝"
+			},
+			"12": "臍",
+			"14": "胤",
+			"16": {
+				"60": "脣",
+				"218": "胚",
+				"248": "腓"
+			},
+			"18": {
+				"142": "腔",
+				"216": "腟"
+			},
+			"26": "腕",
+			"28": "膵",
+			"30": "膏",
+			"32": {
+				"220": "肓"
+			},
+			"36": {
+				"42": "髓",
+				"46": "臉",
+				"60": "肱",
+				"104": "贏",
+				"106": "臚",
+				"120": "胥",
+				"122": "肚",
+				"124": "胼",
+				"126": "膊",
+				"140": "膃",
+				"158": "胯",
+				"170": "胙",
+				"188": "羸",
+				"216": "膣",
+				"220": "膀"
+			},
+			"38": {
+				"30": "膾",
+				"236": "盒"
+			},
+			"42": "髄",
+			"44": "脱",
+			"52": {
+				"202": "胖"
+			},
+			"56": "肘",
+			"60": "肋",
+			"62": "膳",
+			"64": {
+				"216": "腴"
+			},
+			"70": {
+				"168": "盪"
+			},
+			"74": "胎",
+			"78": "脂",
+			"84": {
+				"106": "膰"
+			},
+			"90": "削",
+			"92": "股",
+			"94": "脇",
+			"98": {
+				"46": "腆",
+				"60": "膿",
+				"172": "腮"
+			},
+			"102": {
+				"92": "臑",
+				"190": "膤"
+			},
+			"106": "脾",
+			"108": "腎",
+			"110": "脳",
+			"120": "膺",
+			"122": "爪",
+			"124": "胴",
+			"128": {
+				"152": "肬",
+				"220": "脯"
+			},
+			"132": {
+				"42": "膸",
+				"110": "腦",
+				"168": "膓",
+				"204": "膽"
+			},
+			"138": "肝",
+			"142": "背",
+			"144": {
+				"216": "脩"
+			},
+			"146": {
+				"170": "脆"
+			},
+			"148": {
+				"10": "肛"
+			},
+			"152": "脊",
+			"154": "膜",
+			"156": "臀",
+			"158": "脛",
+			"160": {
+				"156": "胛"
+			},
+			"166": {
+				"154": "黶"
+			},
+			"168": "腸",
+			"170": "脚",
+			"174": "肺",
+			"176": {
+				"24": "脉"
+			},
+			"184": "膝",
+			"186": "腹",
+			"188": "衆",
+			"192": {
+				"12": "胱",
+				"46": "腫",
+				"74": "腋"
+			},
+			"194": {
+				"218": "腱"
+			},
+			"196": {
+				"14": "腥",
+				"184": "腺"
+			},
+			"198": {
+				"88": "腿"
+			},
+			"200": "肌",
+			"202": "肢",
+			"204": "胆",
+			"206": "肥",
+			"212": {
+				"216": "膂"
+			},
+			"218": "腰",
+			"220": "肪",
+			"228": {
+				"14": "膩",
+				"152": "肭",
+				"158": "臙",
+				"222": "膕"
+			},
+			"234": "臂",
+			"236": "膈",
+			"238": "脈",
+			"250": "膠",
+			"252": "胸"
+		},
+		"135": {
+			"2": {
+				"76": "朶",
+				"188": "槽"
+			},
+			"4": {
+				"26": "桴"
+			},
+			"6": {
+				"248": "樵"
+			},
+			"14": "集",
+			"16": {
+				"90": "朷",
+				"92": "椴",
+				"120": "杼",
+				"126": "槫",
+				"138": "栞",
+				"200": "梵",
+				"216": "桎",
+				"236": "棧"
+			},
+			"18": {
+				"90": "朸",
+				"106": "榕",
+				"138": "桿",
+				"142": "椌",
+				"204": "檐"
+			},
+			"24": "未",
+			"26": "森",
+			"28": "析",
+			"30": "柄",
+			"32": {
+				"14": "桝",
+				"188": "柤",
+				"204": "桓",
+				"250": "桙"
+			},
+			"34": {
+				"202": "槊"
+			},
+			"36": {
+				"26": "椀",
+				"42": "楕",
+				"58": "棆",
+				"60": "枠",
+				"74": "樸",
+				"78": "梁",
+				"88": "櫂",
+				"94": "榱",
+				"104": "斯",
+				"106": "樽",
+				"120": "楪",
+				"122": "桶",
+				"124": "朴",
+				"138": "杆",
+				"140": "楹",
+				"142": "棋",
+				"154": "梳",
+				"156": "杠",
+				"158": "桀",
+				"184": "檄",
+				"188": "麒",
+				"190": "梟",
+				"200": "橈",
+				"204": "櫓",
+				"206": "柁",
+				"220": "榜",
+				"222": "柵",
+				"234": "碁",
+				"236": "桟",
+				"248": "樮",
+				"250": "梭",
+				"252": "框"
+			},
+			"38": {
+				"28": "槍",
+				"172": "棯",
+				"204": "椙",
+				"222": "栓"
+			},
+			"40": "末",
+			"42": "棺",
+			"44": "杭",
+			"46": "検",
+			"48": {
+				"30": "槁",
+				"74": "杁",
+				"78": "栖",
+				"122": "樌",
+				"138": "柯",
+				"154": "枡",
+				"200": "梺",
+				"204": "楷",
+				"206": "棟",
+				"222": "柮",
+				"252": "杓"
+			},
+			"52": {
+				"156": "栫"
+			},
+			"54": {
+				"238": "楫"
+			},
+			"56": "柴",
+			"58": "忌",
+			"60": "枯",
+			"62": "格",
+			"64": {
+				"94": "枅"
+			},
+			"66": {
+				"174": "柎"
+			},
+			"74": "来",
+			"76": "核",
+			"78": "標",
+			"80": {
+				"10": "杣",
+				"62": "椥"
+			},
+			"82": {
+				"62": "枷",
+				"158": "楔"
+			},
+			"88": "根",
+			"90": "刺",
+			"92": "橋",
+			"94": "禁",
+			"96": {
+				"142": "櫃",
+				"156": "槓"
+			},
+			"98": {
+				"46": "椣",
+				"106": "櫑",
+				"156": "冀"
+			},
+			"102": {
+				"10": "櫺",
+				"170": "櫛"
+			},
+			"104": "札",
+			"106": "楼",
+			"108": "叢",
+			"110": "校",
+			"112": {
+				"46": "釐",
+				"174": "椨",
+				"232": "柢",
+				"254": "楯"
+			},
+			"114": {
+				"62": "桔",
+				"236": "橲"
+			},
+			"116": {
+				"40": "栲",
+				"190": "梶"
+			},
+			"120": "柔",
+			"122": "基",
+			"124": "械",
+			"128": {
+				"238": "梠"
+			},
+			"130": {
+				"142": "樔"
+			},
+			"134": {
+				"46": "檢",
+				"74": "來",
+				"106": "樓",
+				"158": "權",
+				"168": "棗",
+				"186": "樞",
+				"188": "樣"
+			},
+			"136": "本",
+			"138": "株",
+			"140": "棚",
+			"142": "林",
+			"146": {
+				"46": "梹",
+				"56": "椛"
+			},
+			"148": {
+				"10": "杢",
+				"154": "梏",
+				"232": "櫪"
+			},
+			"150": {
+				"90": "椦"
+			},
+			"152": "概",
+			"154": "模",
+			"156": "横",
+			"158": "権",
+			"160": {
+				"58": "楞"
+			},
+			"162": {
+				"42": "橢",
+				"156": "槨"
+			},
+			"164": {
+				"26": "彬",
+				"122": "柧",
+				"172": "蕊"
+			},
+			"168": "束",
+			"170": "棲",
+			"172": "想",
+			"174": "村",
+			"178": {
+				"24": "柩",
+				"140": "檻"
+			},
+			"180": {
+				"24": "杵",
+				"56": "麓",
+				"140": "梢",
+				"156": "槎"
+			},
+			"182": {
+				"10": "樢",
+				"88": "槝"
+			},
+			"184": "枚",
+			"186": "枢",
+			"188": "様",
+			"190": "耗",
+			"192": {
+				"88": "梍",
+				"90": "枴",
+				"104": "柝",
+				"124": "枦",
+				"142": "棊",
+				"156": "椁",
+				"158": "桍",
+				"188": "椽",
+				"200": "橇",
+				"204": "杳",
+				"218": "档",
+				"222": "檮",
+				"234": "柆",
+				"236": "杙",
+				"250": "樛"
+			},
+			"194": {
+				"122": "樋",
+				"222": "梃"
+			},
+			"196": {
+				"10": "槹",
+				"56": "棍",
+				"108": "樶",
+				"124": "棹",
+				"184": "楾",
+				"200": "橸",
+				"232": "棔"
+			},
+			"200": "机",
+			"202": "枝",
+			"204": "査",
+			"206": "槌",
+			"208": {
+				"44": "梯",
+				"90": "椡"
+			},
+			"210": {
+				"92": "槃",
+				"234": "椄"
+			},
+			"212": {
+				"188": "杪"
+			},
+			"214": {
+				"10": "枉",
+				"174": "梼"
+			},
+			"216": "樹",
+			"218": "杯",
+			"220": "棒",
+			"222": "柱",
+			"226": {
+				"10": "蘖",
+				"46": "橦",
+				"172": "槞",
+				"234": "椪"
+			},
+			"228": {
+				"62": "檣",
+				"136": "桷",
+				"142": "梱",
+				"216": "棡",
+				"222": "椢"
+			},
+			"232": "板",
+			"234": "極",
+			"236": "機",
+			"238": "枕",
+			"240": {
+				"10": "杰"
+			},
+			"242": {
+				"12": "榻",
+				"44": "凩",
+				"104": "槧"
+			},
+			"244": {
+				"12": "枹",
+				"184": "檠"
+			},
+			"246": {
+				"44": "覲"
+			},
+			"248": "杖",
+			"250": "構",
+			"252": "朽",
+			"254": "相"
+		},
+		"139": "金",
+		"141": "肉",
+		"143": "木",
+		"145": {
+			"2": {
+				"90": "仭"
+			},
+			"14": "催",
+			"20": {
+				"60": "伜"
+			},
+			"28": "領",
+			"30": "儲",
+			"36": {
+				"122": "俑",
+				"126": "佇",
+				"170": "僊",
+				"184": "傚",
+				"190": "鶺",
+				"218": "佞"
+			},
+			"44": "介",
+			"46": "倹",
+			"56": "化",
+			"58": "偲",
+			"60": "令",
+			"62": "伽",
+			"74": "便",
+			"76": "佐",
+			"78": "任",
+			"80": {
+				"10": "仙"
+			},
+			"88": "侯",
+			"90": "側",
+			"92": "僑",
+			"94": "俵",
+			"104": "償",
+			"108": "侵",
+			"120": "仄",
+			"122": "佳",
+			"124": "偵",
+			"126": "停",
+			"136": "像",
+			"142": "僅",
+			"144": {
+				"46": "儉",
+				"248": "僞",
+				"254": "佛"
+			},
+			"152": "使",
+			"156": "仔",
+			"158": "傑",
+			"168": "傷",
+			"170": "作",
+			"172": "俺",
+			"174": "伸",
+			"184": "攸",
+			"188": "僧",
+			"190": "鷲",
+			"192": {
+				"200": "凭"
+			},
+			"196": {
+				"158": "僭"
+			},
+			"202": "伴",
+			"204": "伯",
+			"206": "佗",
+			"210": {
+				"248": "儘"
+			},
+			"212": {
+				"218": "侫"
+			},
+			"216": "悠",
+			"218": "巫",
+			"220": "倣",
+			"222": "偏",
+			"232": "企",
+			"234": "倍",
+			"236": "代",
+			"238": "侶",
+			"244": {
+				"72": "傴"
+			},
+			"246": {
+				"44": "覡"
+			},
+			"248": "偽",
+			"254": "仏"
+		},
+		"147": {
+			"2": {
+				"26": "蔘",
+				"186": "苣"
+			},
+			"6": {
+				"252": "葯"
+			},
+			"14": "難",
+			"16": {
+				"74": "薹"
+			},
+			"20": {
+				"60": "萃",
+				"78": "蒐"
+			},
+			"22": {
+				"184": "藹"
+			},
+			"24": "丘",
+			"26": "急",
+			"28": "英",
+			"30": "芸",
+			"32": {
+				"46": "菷",
+				"154": "藕",
+				"156": "茣",
+				"188": "苴",
+				"220": "茫"
+			},
+			"34": {
+				"42": "萠"
+			},
+			"36": {
+				"26": "苑",
+				"42": "臈",
+				"46": "芬",
+				"74": "莢",
+				"78": "蘯",
+				"88": "艱",
+				"94": "蓑",
+				"142": "藁",
+				"158": "萼",
+				"168": "薮",
+				"170": "范",
+				"172": "芯",
+				"174": "蒄",
+				"184": "蔽",
+				"188": "蒙",
+				"190": "鵠",
+				"234": "蔓",
+				"248": "熏",
+				"250": "葷"
+			},
+			"38": {
+				"28": "蒼",
+				"30": "薈",
+				"62": "莟",
+				"138": "萍"
+			},
+			"46": "兵",
+			"48": {
+				"138": "苛"
+			},
+			"52": {
+				"156": "荐",
+				"236": "苒"
+			},
+			"54": {
+				"124": "苫"
+			},
+			"56": "花",
+			"58": "慕",
+			"60": "苦",
+			"62": "落",
+			"66": {
+				"26": "蓚",
+				"62": "葆",
+				"174": "苻",
+				"234": "莅"
+			},
+			"68": {
+				"76": "茲"
+			},
+			"70": {
+				"72": "萢",
+				"168": "蕩"
+			},
+			"74": "荷",
+			"76": "薬",
+			"78": "蒸",
+			"80": {
+				"12": "薙"
+			},
+			"82": {
+				"188": "莇"
+			},
+			"84": {
+				"106": "蕃"
+			},
+			"86": {
+				"170": "蔡"
+			},
+			"88": "岳",
+			"90": "募",
+			"102": {
+				"106": "蕾"
+			},
+			"106": "蓄",
+			"110": "菜",
+			"112": {
+				"74": "蓙",
+				"190": "蓆"
+			},
+			"116": {
+				"94": "蔚"
+			},
+			"120": "葉",
+			"122": "墓",
+			"124": "葬",
+			"126": "薄",
+			"128": {
+				"122": "蕘",
+				"172": "菴",
+				"234": "薜",
+				"252": "蒭"
+			},
+			"136": "卉",
+			"138": "華",
+			"140": "蘊",
+			"142": "菓",
+			"146": {
+				"30": "藝",
+				"76": "藥",
+				"158": "莖",
+				"186": "藏",
+				"222": "莊"
+			},
+			"148": {
+				"250": "蓊"
+			},
+			"150": {
+				"92": "蓁",
+				"124": "莽"
+			},
+			"154": "荒",
+			"158": "茎",
+			"162": {
+				"108": "蔭"
+			},
+			"164": {
+				"172": "蘂"
+			},
+			"166": {
+				"60": "蓐",
+				"120": "蔕"
+			},
+			"168": "若",
+			"170": "危",
+			"172": "愚",
+			"174": "幕",
+			"178": {
+				"10": "苳",
+				"62": "茖"
+			},
+			"180": {
+				"56": "麁",
+				"204": "藐"
+			},
+			"184": "藩",
+			"186": "蔵",
+			"188": "薦",
+			"192": {
+				"46": "董",
+				"92": "芟",
+				"158": "蕚",
+				"168": "藪",
+				"234": "蘰"
+			},
+			"194": {
+				"10": "莚"
+			},
+			"196": {
+				"10": "葩",
+				"42": "萌",
+				"94": "藉",
+				"174": "蒔"
+			},
+			"204": "暮",
+			"206": "茂",
+			"210": {
+				"62": "茹",
+				"170": "萋"
+			},
+			"212": {
+				"12": "薨",
+				"88": "蔟"
+			},
+			"218": "萎",
+			"220": "芳",
+			"222": "荘",
+			"224": {
+				"232": "蕋"
+			},
+			"226": {
+				"170": "蔀",
+				"174": "蒂"
+			},
+			"228": {
+				"30": "薗",
+				"62": "茴",
+				"158": "茵"
+			},
+			"232": "歎",
+			"234": "薪",
+			"236": "菌",
+			"238": "葺",
+			"244": {
+				"12": "苞",
+				"40": "苟"
+			},
+			"246": {
+				"90": "苅"
+			},
+			"248": "薫",
+			"254": "芽"
+		},
+		"149": {
+			"2": {
+				"76": "孕"
+			},
+			"10": "工",
+			"14": "耕",
+			"18": {
+				"46": "窖"
+			},
+			"26": "虹",
+			"28": "項",
+			"30": "耘",
+			"32": {
+				"76": "孩"
+			},
+			"36": {
+				"28": "孰",
+				"42": "耜",
+				"60": "孛",
+				"76": "孳",
+				"184": "敦",
+				"188": "麑",
+				"190": "鶲",
+				"206": "耙"
+			},
+			"44": "児",
+			"58": "恭",
+			"72": "耒",
+			"76": "孫",
+			"78": "浩",
+			"82": {
+				"188": "耡"
+			},
+			"90": "功",
+			"92": "殿",
+			"102": {
+				"92": "孺"
+			},
+			"104": "孔",
+			"124": "事",
+			"126": "押",
+			"148": {
+				"44": "兒",
+				"124": "亊"
+			},
+			"154": "告",
+			"156": "孤",
+			"166": {
+				"60": "耨"
+			},
+			"172": "怱",
+			"180": {
+				"56": "麌"
+			},
+			"184": "攻",
+			"190": "鴨",
+			"192": {
+				"72": "斈",
+				"184": "孜"
+			},
+			"204": "暦",
+			"210": {
+				"108": "孥"
+			},
+			"218": "好",
+			"232": "歴",
+			"250": "翁",
+			"252": "巧"
+		},
+		"151": {
+			"14": "奪",
+			"18": {
+				"46": "豬"
+			},
+			"20": {
+				"60": "猝",
+				"168": "獺"
+			},
+			"24": "鼬",
+			"26": "狙",
+			"28": "央",
+			"30": "猿",
+			"36": {
+				"26": "尨",
+				"42": "狷",
+				"44": "猊",
+				"60": "夲",
+				"62": "吠",
+				"90": "勁",
+				"92": "猯",
+				"94": "剄",
+				"104": "狽",
+				"106": "畚",
+				"122": "奎",
+				"124": "套",
+				"126": "獰",
+				"152": "犹",
+				"154": "獏",
+				"172": "慧",
+				"186": "彗",
+				"188": "豢",
+				"190": "鸛",
+				"248": "狄",
+				"254": "狒"
+			},
+			"38": {
+				"30": "獪",
+				"204": "猖"
+			},
+			"40": "鼡",
+			"42": "獅",
+			"44": "規",
+			"46": "猪",
+			"48": {
+				"44": "狆",
+				"46": "狸"
+			},
+			"52": {
+				"24": "犲"
+			},
+			"58": "忝",
+			"60": "猟",
+			"62": "器",
+			"64": {
+				"88": "狠"
+			},
+			"74": "狭",
+			"78": "泰",
+			"88": "狼",
+			"90": "券",
+			"92": "秦",
+			"94": "勧",
+			"106": "奮",
+			"108": "獄",
+			"116": {
+				"204": "奢"
+			},
+			"124": "奔",
+			"126": "拳",
+			"128": {
+				"90": "舂",
+				"188": "狃"
+			},
+			"130": {
+				"42": "猾"
+			},
+			"134": {
+				"142": "樊"
+			},
+			"136": "猫",
+			"138": "奇",
+			"140": "猛",
+			"144": {
+				"88": "猴"
+			},
+			"150": {
+				"40": "鼠",
+				"60": "獵",
+				"62": "噐",
+				"74": "狹",
+				"90": "劵",
+				"94": "勸",
+				"138": "猗",
+				"170": "卷",
+				"200": "獸",
+				"232": "歡",
+				"250": "獨",
+				"254": "觀"
+			},
+			"152": "奈",
+			"154": "獲",
+			"156": "狐",
+			"158": "奏",
+			"160": {
+				"156": "狎"
+			},
+			"164": {
+				"122": "瓠"
+			},
+			"166": {
+				"190": "猜"
+			},
+			"170": "巻",
+			"172": "恩",
+			"174": "狩",
+			"178": {
+				"62": "貉"
+			},
+			"186": "狢",
+			"188": "駄",
+			"190": "猶",
+			"192": {
+				"110": "狡",
+				"190": "鶚"
+			},
+			"196": {
+				"10": "狛",
+				"14": "猩"
+			},
+			"200": "獣",
+			"202": "犯",
+			"204": "春",
+			"214": {
+				"122": "奘"
+			},
+			"218": "嫌",
+			"220": "奉",
+			"222": "狂",
+			"224": {
+				"10": "獗",
+				"92": "齶"
+			},
+			"232": "歓",
+			"236": "呑",
+			"244": {
+				"12": "匏",
+				"72": "奩"
+			},
+			"248": "然",
+			"250": "独",
+			"252": "狗",
+			"254": "観"
+		},
+		"153": "仁",
+		"155": "草",
+		"157": "子",
+		"159": "犬",
+		"161": {
+			"10": "一",
+			"14": "二",
+			"18": {
+				"200": "卍"
+			},
+			"26": "三",
+			"28": "九",
+			"30": "六",
+			"42": "五",
+			"44": "兆",
+			"46": "八",
+			"58": "四",
+			"62": "七",
+			"74": "億",
+			"78": "壬",
+			"92": "庚",
+			"104": "乙",
+			"110": "父",
+			"120": "丗",
+			"124": "廿",
+			"126": "丁",
+			"130": {
+				"42": "髏"
+			},
+			"142": "己",
+			"156": "甲",
+			"160": {
+				"120": "卅",
+				"168": "數",
+				"234": "萬"
+			},
+			"172": "忽",
+			"174": "寸",
+			"186": "癸",
+			"190": "千",
+			"206": "戊",
+			"222": "丙",
+			"234": "万",
+			"254": "百"
+		},
+		"163": {
+			"2": {
+				"44": "阮"
+			},
+			"4": {
+				"188": "隧"
+			},
+			"10": "陸",
+			"14": "降",
+			"16": {
+				"58": "邯",
+				"206": "陂",
+				"248": "齏"
+			},
+			"20": {
+				"78": "隗"
+			},
+			"26": "卯",
+			"36": {
+				"14": "隰",
+				"42": "隋",
+				"74": "陜",
+				"78": "陲",
+				"106": "卻",
+				"126": "鄭",
+				"158": "鄂",
+				"170": "卿",
+				"188": "隲",
+				"190": "鴛",
+				"206": "陀",
+				"232": "阯",
+				"236": "鄙",
+				"252": "鄒"
+			},
+			"42": "随",
+			"44": "院",
+			"46": "険",
+			"48": {
+				"188": "隙",
+				"218": "邨"
+			},
+			"52": {
+				"42": "陏"
+			},
+			"54": {
+				"62": "鄲",
+				"222": "郢"
+			},
+			"58": "隠",
+			"60": "障",
+			"62": "隔",
+			"78": "郵",
+			"82": {
+				"236": "邵"
+			},
+			"88": "限",
+			"90": "陥",
+			"92": "隣",
+			"94": "剤",
+			"96": {
+				"62": "隕"
+			},
+			"98": {
+				"10": "郤"
+			},
+			"106": "隈",
+			"108": "陰",
+			"110": "郊",
+			"112": {
+				"170": "阨"
+			},
+			"120": "薩",
+			"122": "陛",
+			"124": "陶",
+			"138": "阿",
+			"140": "隘",
+			"146": {
+				"24": "邱"
+			},
+			"154": "隅",
+			"156": "郭",
+			"160": {
+				"190": "阡",
+				"222": "陋",
+				"254": "陌"
+			},
+			"162": {
+				"42": "隨",
+				"46": "險",
+				"58": "隱",
+				"90": "陷",
+				"92": "鄰",
+				"94": "劑",
+				"200": "齊"
+			},
+			"168": "陽",
+			"170": "際",
+			"172": "怨",
+			"174": "附",
+			"176": {
+				"26": "郛"
+			},
+			"184": "凄",
+			"186": "陵",
+			"188": "阻",
+			"190": "隆",
+			"192": {
+				"74": "陝",
+				"248": "韲"
+			},
+			"196": {
+				"154": "陞",
+				"222": "隍"
+			},
+			"200": "斉",
+			"204": "階",
+			"206": "陳",
+			"212": {
+				"10": "夘"
+			},
+			"214": {
+				"174": "陦"
+			},
+			"218": "阜",
+			"220": "防",
+			"224": {
+				"188": "陟"
+			},
+			"226": {
+				"172": "隴"
+			},
+			"230": {
+				"108": "陬"
+			},
+			"232": "阪",
+			"234": "陪",
+			"236": "叩",
+			"250": "陣",
+			"252": "除"
+		},
+		"165": {
+			"2": {
+				"10": "椏",
+				"44": "芫",
+				"74": "檍",
+				"120": "楙",
+				"142": "椹",
+				"254": "槙"
+			},
+			"6": {
+				"248": "蕉"
+			},
+			"10": "桜",
+			"12": "菊",
+			"14": "葦",
+			"16": {
+				"58": "柑",
+				"90": "茘",
+				"92": "葮",
+				"124": "萇",
+				"126": "榑",
+				"220": "蒡",
+				"248": "菲",
+				"252": "苡"
+			},
+			"18": {
+				"14": "藺",
+				"44": "莞",
+				"88": "樒",
+				"92": "藜",
+				"94": "棕",
+				"104": "檳",
+				"106": "蓉",
+				"108": "椒",
+				"126": "蓴",
+				"142": "菻",
+				"188": "萓",
+				"204": "萱",
+				"216": "榁",
+				"234": "柘",
+				"248": "韮",
+				"250": "櫁",
+				"252": "蒟"
+			},
+			"20": {
+				"10": "桾",
+				"78": "槐",
+				"120": "蕷",
+				"168": "藾"
+			},
+			"26": "杉",
+			"28": "榎",
+			"32": {
+				"88": "榿",
+				"124": "荳",
+				"138": "茱",
+				"200": "蕣",
+				"216": "楡",
+				"220": "芒"
+			},
+			"34": {
+				"62": "梧",
+				"106": "榴"
+			},
+			"36": {
+				"14": "椎",
+				"44": "蓿",
+				"46": "檎",
+				"56": "蓖",
+				"62": "梔",
+				"74": "梛",
+				"78": "藻",
+				"90": "莉",
+				"92": "蕎",
+				"94": "蒜",
+				"106": "橿",
+				"108": "菽",
+				"120": "橘",
+				"122": "桂",
+				"124": "芦",
+				"126": "檸",
+				"138": "萵",
+				"140": "榲",
+				"142": "槿",
+				"156": "李",
+				"168": "楊",
+				"170": "柞",
+				"184": "葛",
+				"186": "稷",
+				"188": "檬",
+				"202": "薑",
+				"204": "櫟",
+				"206": "芭",
+				"216": "萸",
+				"218": "蔔",
+				"220": "枋",
+				"234": "菩",
+				"248": "荻",
+				"252": "榧",
+				"254": "棉"
+			},
+			"38": {
+				"138": "苹",
+				"158": "蒹",
+				"204": "菖",
+				"236": "荅",
+				"252": "荼"
+			},
+			"40": "必",
+			"42": "菅",
+			"44": "桃",
+			"46": "桧",
+			"48": {
+				"30": "蒿",
+				"88": "莨",
+				"202": "栂",
+				"206": "楝",
+				"238": "楠",
+				"252": "芍"
+			},
+			"50": {
+				"142": "楳"
+			},
+			"52": {
+				"120": "笹",
+				"234": "薛"
+			},
+			"54": {
+				"60": "葫",
+				"174": "蕁",
+				"202": "枳"
+			},
+			"56": "苺",
+			"60": "梓",
+			"62": "杏",
+			"64": {
+				"158": "芙"
+			},
+			"66": {
+				"158": "茯"
+			},
+			"68": {
+				"188": "櫞"
+			},
+			"70": {
+				"94": "瓢",
+				"140": "薀",
+				"206": "菠",
+				"220": "蒲"
+			},
+			"72": "粟",
+			"74": "苔",
+			"78": "栗",
+			"80": {
+				"170": "榔"
+			},
+			"82": {
+				"44": "菟",
+				"62": "茄",
+				"172": "荵",
+				"216": "蕭"
+			},
+			"84": {
+				"76": "莠",
+				"90": "梨",
+				"124": "萪",
+				"186": "薐",
+				"248": "楸"
+			},
+			"86": {
+				"94": "荊",
+				"174": "榊"
+			},
+			"90": "薊",
+			"92": "芝",
+			"98": {
+				"24": "柚",
+				"170": "稗"
+			},
+			"100": {
+				"204": "藷"
+			},
+			"102": {
+				"10": "樗"
+			},
+			"104": "芹",
+			"106": "蘆",
+			"108": "桑",
+			"112": {
+				"124": "蔗",
+				"154": "蔬"
+			},
+			"114": {
+				"186": "樫"
+			},
+			"116": {
+				"12": "蓍",
+				"204": "楮"
+			},
+			"120": "茅",
+			"122": "瓜",
+			"124": "桐",
+			"126": "欅",
+			"128": {
+				"42": "楜",
+				"156": "枩",
+				"202": "棠",
+				"234": "蘗",
+				"238": "櫚"
+			},
+			"130": {
+				"42": "榾"
+			},
+			"134": {
+				"26": "杜",
+				"40": "茉",
+				"74": "莱",
+				"142": "楚",
+				"168": "棘"
+			},
+			"136": "黍",
+			"138": "芋",
+			"140": "藍",
+			"142": "茶",
+			"144": {
+				"60": "苓",
+				"78": "荏"
+			},
+			"146": {
+				"138": "樺"
+			},
+			"148": {
+				"156": "菰"
+			},
+			"150": {
+				"44": "槻",
+				"92": "榛",
+				"190": "蕕",
+				"204": "椿",
+				"254": "欟"
+			},
+			"152": "芥",
+			"154": "菱",
+			"156": "松",
+			"158": "椅",
+			"160": {
+				"126": "苧",
+				"142": "杞",
+				"168": "蕀",
+				"234": "栃",
+				"254": "栢"
+			},
+			"162": {
+				"26": "茆",
+				"200": "薺"
+			},
+			"164": {
+				"10": "櫻",
+				"12": "椈",
+				"46": "檜",
+				"156": "菘",
+				"218": "籐"
+			},
+			"166": {
+				"190": "菁"
+			},
+			"170": "柳",
+			"172": "葱",
+			"174": "柿",
+			"176": {
+				"220": "莎"
+			},
+			"178": {
+				"10": "柊",
+				"14": "蘿",
+				"124": "橙",
+				"142": "篠",
+				"204": "薯"
+			},
+			"180": {
+				"26": "莵",
+				"136": "橡"
+			},
+			"182": {
+				"136": "楢",
+				"188": "蘚"
+			},
+			"184": "茜",
+			"186": "葵",
+			"188": "蘇",
+			"190": "蔦",
+			"192": {
+				"46": "枌",
+				"56": "枇",
+				"62": "椋",
+				"92": "葭",
+				"106": "櫨",
+				"124": "萄",
+				"142": "菫",
+				"168": "杤",
+				"186": "蔆",
+				"188": "蘓",
+				"202": "莓",
+				"204": "榠",
+				"206": "杷",
+				"216": "棣",
+				"220": "葡",
+				"234": "檗",
+				"236": "檀",
+				"248": "薤",
+				"250": "栩",
+				"252": "椚",
+				"254": "苜"
+			},
+			"196": {
+				"56": "菎",
+				"60": "蕈",
+				"74": "梗",
+				"76": "檪",
+				"186": "荀"
+			},
+			"198": {
+				"26": "槭"
+			},
+			"200": "蕨",
+			"202": "梅",
+			"204": "柏",
+			"206": "蓮",
+			"208": {
+				"120": "樅",
+				"184": "薇",
+				"216": "蒻",
+				"218": "葎"
+			},
+			"210": {
+				"24": "栴"
+			},
+			"212": {
+				"62": "茗",
+				"110": "葹"
+			},
+			"214": {
+				"12": "蒋"
+			},
+			"218": "藤",
+			"220": "蓬",
+			"224": {
+				"14": "柾",
+				"28": "蘋"
+			},
+			"226": {
+				"10": "苙",
+				"60": "樟",
+				"172": "蘢",
+				"174": "楴"
+			},
+			"228": {
+				"10": "莪",
+				"62": "薔",
+				"136": "槲"
+			},
+			"230": {
+				"62": "蕗",
+				"170": "椰",
+				"184": "橄"
+			},
+			"232": "茨",
+			"234": "麻",
+			"238": "茸",
+			"242": {
+				"12": "蓼",
+				"248": "蕪"
+			},
+			"244": {
+				"40": "枸",
+				"136": "椶"
+			},
+			"246": {
+				"186": "欖"
+			},
+			"248": "萩",
+			"250": "楓",
+			"252": "蘭",
+			"254": "艾"
+		},
+		"167": {
+			"2": {
+				"232": "帋"
+			},
+			"10": "色",
+			"14": "帷",
+			"36": {
+				"14": "幃",
+				"124": "帖",
+				"220": "黼"
+			},
+			"38": {
+				"10": "黔"
+			},
+			"42": "師",
+			"46": "幌",
+			"48": {
+				"222": "黜"
+			},
+			"52": {
+				"108": "黻"
+			},
+			"60": "辱",
+			"62": "呻",
+			"64": {
+				"72": "黹"
+			},
+			"68": {
+				"10": "黝"
+			},
+			"72": "巾",
+			"74": "侍",
+			"84": {
+				"106": "幡"
+			},
+			"90": "刷",
+			"96": {
+				"124": "幀"
+			},
+			"114": {
+				"62": "黠",
+				"104": "黷",
+				"122": "幇"
+			},
+			"116": {
+				"216": "幄"
+			},
+			"120": "帯",
+			"122": "墨",
+			"124": "帳",
+			"128": {
+				"158": "帙"
+			},
+			"138": "赤",
+			"140": "帥",
+			"144": {
+				"236": "黛"
+			},
+			"154": "黒",
+			"156": "黄",
+			"158": "黙",
+			"166": {
+				"120": "帶",
+				"158": "默"
+			},
+			"168": "暢",
+			"190": "青",
+			"192": {
+				"62": "黥",
+				"204": "幎"
+			},
+			"196": {
+				"10": "帛"
+			},
+			"200": "帆",
+			"204": "幟",
+			"210": {
+				"108": "帑"
+			},
+			"218": "幅",
+			"226": {
+				"46": "幢",
+				"204": "黯"
+			},
+			"228": {
+				"222": "幗"
+			},
+			"234": "幔",
+			"236": "吊",
+			"238": "緑",
+			"250": "紫",
+			"254": "帽"
+		},
+		"169": "数",
+		"171": "都",
+		"173": "心",
+		"175": "市",
+		"177": {
+			"10": "冷",
+			"12": "汰",
+			"14": "准",
+			"18": {
+				"46": "竅",
+				"188": "馮"
+			},
+			"24": "永",
+			"26": "浮",
+			"28": "漬",
+			"30": "演",
+			"34": {
+				"106": "澑"
+			},
+			"36": {
+				"60": "浤",
+				"62": "凛",
+				"78": "冰",
+				"90": "滔",
+				"122": "汢",
+				"138": "淦",
+				"152": "漑",
+				"154": "濛",
+				"158": "潅",
+				"186": "凌",
+				"190": "鴆",
+				"204": "汨",
+				"254": "冴"
+			},
+			"42": "滑",
+			"44": "況",
+			"46": "溢",
+			"48": {
+				"140": "冱",
+				"254": "鼈"
+			},
+			"58": "添",
+			"60": "準",
+			"62": "涼",
+			"64": {
+				"202": "敝"
+			},
+			"72": "冫",
+			"74": "治",
+			"76": "潔",
+			"78": "淫",
+			"88": "凝",
+			"90": "測",
+			"92": "濡",
+			"104": "資",
+			"106": "浴",
+			"108": "浸",
+			"110": "漏",
+			"116": {
+				"204": "瀦"
+			},
+			"120": "源",
+			"122": "涯",
+			"124": "弊",
+			"128": {
+				"202": "敞"
+			},
+			"138": "汗",
+			"140": "濫",
+			"142": "染",
+			"152": "冶",
+			"154": "漢",
+			"156": "江",
+			"158": "潜",
+			"168": "瀬",
+			"170": "済",
+			"172": "泌",
+			"174": "幣",
+			"176": {
+				"44": "况",
+				"60": "凖",
+				"62": "凉",
+				"158": "潛",
+				"170": "濟",
+				"174": "幤",
+				"188": "淨"
+			},
+			"184": "渇",
+			"186": "覆",
+			"188": "浄",
+			"190": "清",
+			"192": {
+				"12": "滉",
+				"158": "灌",
+				"188": "漾"
+			},
+			"196": {
+				"60": "覃"
+			},
+			"200": "沈",
+			"204": "泊",
+			"206": "凍",
+			"212": {
+				"12": "斃",
+				"90": "冽"
+			},
+			"214": {
+				"174": "濤"
+			},
+			"216": "致",
+			"218": "津",
+			"220": "沙",
+			"222": "潤",
+			"224": {
+				"10": "歇"
+			},
+			"228": {
+				"60": "凅",
+				"122": "凋",
+				"254": "瀰"
+			},
+			"232": "次",
+			"234": "漫",
+			"236": "淳",
+			"238": "派",
+			"248": "潟",
+			"250": "濁",
+			"252": "汚",
+			"254": "沸"
+		},
+		"179": {
+			"2": {
+				"10": "夊"
+			},
+			"4": {
+				"12": "网"
+			},
+			"6": {
+				"42": "羂"
+			},
+			"10": "冬",
+			"12": "罪",
+			"14": "羅",
+			"16": {
+				"24": "夂",
+				"138": "罕",
+				"218": "罘"
+			},
+			"22": {
+				"174": "罸"
+			},
+			"24": "久",
+			"26": "臨",
+			"30": "詈",
+			"34": {
+				"248": "羆"
+			},
+			"36": {
+				"10": "癶",
+				"106": "盧",
+				"122": "罫",
+				"158": "麩",
+				"232": "麪",
+				"252": "虧"
+			},
+			"42": "罷",
+			"46": "罹",
+			"54": {
+				"60": "罟"
+			},
+			"58": "罨",
+			"60": "羈",
+			"62": "各",
+			"64": {
+				"72": "虍",
+				"158": "麸"
+			},
+			"72": "虎",
+			"74": "臥",
+			"78": "渠",
+			"84": {
+				"10": "粂",
+				"204": "馥"
+			},
+			"90": "虜",
+			"94": "罰",
+			"104": "買",
+			"106": "膚",
+			"114": {
+				"138": "睾"
+			},
+			"124": "登",
+			"126": "拒",
+			"134": {
+				"142": "罧"
+			},
+			"138": "虐",
+			"140": "監",
+			"142": "条",
+			"146": {
+				"174": "羃"
+			},
+			"150": {
+				"138": "羇"
+			},
+			"156": "虞",
+			"170": "即",
+			"172": "慮",
+			"174": "欝",
+			"178": {
+				"142": "條",
+				"174": "鬱",
+				"188": "據",
+				"200": "處",
+				"236": "戲"
+			},
+			"186": "發",
+			"188": "拠",
+			"192": {
+				"72": "虔"
+			},
+			"196": {
+				"124": "罩"
+			},
+			"200": "処",
+			"204": "署",
+			"206": "蔑",
+			"226": {
+				"10": "竪"
+			},
+			"232": "罠",
+			"236": "戯",
+			"244": {
+				"12": "麭"
+			},
+			"246": {
+				"24": "麺"
+			},
+			"248": "虚",
+			"254": "置"
+		},
+		"181": {
+			"2": {
+				"26": "驂",
+				"140": "衄",
+				"232": "牴"
+			},
+			"10": "牛",
+			"12": "羊",
+			"14": "牲",
+			"16": {
+				"74": "駘",
+				"142": "騏"
+			},
+			"18": {
+				"188": "驫"
+			},
+			"20": {
+				"10": "羣"
+			},
+			"24": "午",
+			"26": "兎",
+			"30": "駸",
+			"32": {
+				"76": "駭"
+			},
+			"34": {
+				"62": "牾"
+			},
+			"36": {
+				"14": "騅",
+				"28": "牡",
+				"42": "盖",
+				"44": "羌",
+				"56": "豼",
+				"92": "驕",
+				"106": "驢",
+				"108": "馭",
+				"122": "驍",
+				"124": "犀",
+				"138": "駻",
+				"142": "驥",
+				"154": "驀",
+				"156": "羔",
+				"158": "驩",
+				"172": "憑",
+				"184": "羯",
+				"188": "羞",
+				"206": "駝",
+				"218": "姜",
+				"222": "騙",
+				"232": "羝",
+				"238": "驤",
+				"248": "羮",
+				"250": "駿",
+				"254": "牝"
+			},
+			"40": "駒",
+			"42": "蓋",
+			"44": "争",
+			"46": "験",
+			"48": {
+				"30": "犒",
+				"46": "貍",
+				"158": "尖"
+			},
+			"54": {
+				"62": "騨",
+				"74": "駛"
+			},
+			"56": "鹿",
+			"58": "惣",
+			"60": "豺",
+			"62": "善",
+			"66": {
+				"142": "貅"
+			},
+			"70": {
+				"94": "驃"
+			},
+			"72": "豚",
+			"74": "儀",
+			"78": "洋",
+			"82": {
+				"62": "駕",
+				"236": "貂"
+			},
+			"84": {
+				"10": "犂",
+				"76": "羲",
+				"90": "犁"
+			},
+			"88": "養",
+			"90": "劣",
+			"92": "粗",
+			"94": "劇",
+			"98": {
+				"24": "騁",
+				"76": "騾"
+			},
+			"106": "駅",
+			"108": "駁",
+			"110": "馳",
+			"114": {
+				"104": "犢"
+			},
+			"122": "墜",
+			"124": "屑",
+			"126": "挿",
+			"128": {
+				"136": "豸",
+				"138": "甑",
+				"154": "貘"
+			},
+			"130": {
+				"24": "駲"
+			},
+			"136": "象",
+			"138": "騎",
+			"140": "肖",
+			"142": "業",
+			"144": {
+				"60": "羚"
+			},
+			"146": {
+				"24": "駈"
+			},
+			"148": {
+				"44": "貎"
+			},
+			"154": "馴",
+			"156": "差",
+			"158": "美",
+			"160": {
+				"46": "尓",
+				"58": "駟",
+				"254": "貊"
+			},
+			"168": "物",
+			"170": "隊",
+			"172": "慶",
+			"174": "特",
+			"178": {
+				"62": "駱"
+			},
+			"180": {
+				"26": "兔",
+				"44": "爭",
+				"46": "驗",
+				"62": "譱",
+				"106": "驛",
+				"126": "插",
+				"188": "犇",
+				"250": "騷",
+				"252": "驅"
+			},
+			"184": "牧",
+			"186": "罵",
+			"188": "犠",
+			"192": {
+				"42": "葢",
+				"56": "貔",
+				"72": "馼",
+				"110": "駮",
+				"124": "駢",
+				"188": "犧",
+				"236": "羶",
+				"248": "羹"
+			},
+			"204": "貌",
+			"206": "豹",
+			"210": {
+				"108": "駑"
+			},
+			"222": "駐",
+			"224": {
+				"10": "歃",
+				"92": "齟"
+			},
+			"228": {
+				"56": "驪"
+			},
+			"230": {
+				"108": "驟",
+				"174": "麝"
+			},
+			"232": "羨",
+			"236": "義",
+			"240": {
+				"248": "犖"
+			},
+			"242": {
+				"12": "翔"
+			},
+			"250": "騒",
+			"252": "駆",
+			"254": "省"
+		},
+		"183": {
+			"2": {
+				"26": "鯵"
+			},
+			"10": "鳥",
+			"12": "魚",
+			"14": "生",
+			"16": {
+				"58": "酣",
+				"190": "毳",
+				"248": "鯡"
+			},
+			"18": {
+				"26": "鰺",
+				"42": "鰡",
+				"92": "鰕",
+				"140": "鰮",
+				"218": "鮟",
+				"234": "鮖"
+			},
+			"20": {
+				"78": "餽"
+			},
+			"24": "酸",
+			"26": "烏",
+			"28": "醜",
+			"30": "餌",
+			"34": {
+				"106": "鯔"
+			},
+			"36": {
+				"26": "餮",
+				"42": "舘",
+				"76": "酳",
+				"78": "鮨",
+				"90": "餡",
+				"92": "酘",
+				"106": "鱸",
+				"110": "餃",
+				"120": "鰈",
+				"122": "饒",
+				"124": "鰭",
+				"140": "饂",
+				"142": "饉",
+				"154": "醯",
+				"156": "饌",
+				"158": "猷",
+				"170": "鮓",
+				"186": "醗",
+				"220": "魴",
+				"234": "鰻",
+				"236": "餞",
+				"248": "餤"
+			},
+			"38": {
+				"30": "鱠",
+				"138": "鮃",
+				"172": "鯰"
+			},
+			"42": "館",
+			"44": "静",
+			"46": "鯉",
+			"48": {
+				"158": "奠",
+				"168": "醢",
+				"174": "酎",
+				"206": "鰊",
+				"218": "飩",
+				"252": "酌"
+			},
+			"50": {
+				"10": "饐"
+			},
+			"52": {
+				"42": "鮪"
+			},
+			"54": {
+				"60": "醐",
+				"124": "鮎",
+				"186": "饕",
+				"222": "酲"
+			},
+			"58": "甜",
+			"60": "酔",
+			"62": "鯨",
+			"64": {
+				"220": "鰲"
+			},
+			"66": {
+				"142": "鮴",
+				"174": "鮒"
+			},
+			"68": {
+				"236": "饑"
+			},
+			"70": {
+				"94": "鰾"
+			},
+			"72": "酉",
+			"74": "飴",
+			"76": "饗",
+			"78": "酒",
+			"84": {
+				"90": "鯏",
+				"248": "鰍"
+			},
+			"86": {
+				"174": "鰰"
+			},
+			"88": "島",
+			"90": "制",
+			"92": "鱗",
+			"94": "製",
+			"96": {
+				"142": "饋"
+			},
+			"98": {
+				"90": "甥",
+				"124": "鱧",
+				"172": "鰓"
+			},
+			"102": {
+				"190": "鱈"
+			},
+			"104": "乱",
+			"106": "鯛",
+			"108": "餐",
+			"112": {
+				"216": "鱇"
+			},
+			"114": {
+				"186": "鰹",
+				"236": "鱚"
+			},
+			"116": {
+				"26": "髦"
+			},
+			"122": "鮭",
+			"124": "餅",
+			"126": "掣",
+			"128": {
+				"42": "餬",
+				"220": "鯆"
+			},
+			"132": {
+				"188": "鰥"
+			},
+			"134": {
+				"142": "醂"
+			},
+			"136": "酋",
+			"138": "酬",
+			"140": "盛",
+			"142": "配",
+			"146": {
+				"170": "鮠",
+				"220": "餝",
+				"248": "醺"
+			},
+			"148": {
+				"44": "鯢"
+			},
+			"150": {
+				"204": "鰆"
+			},
+			"152": "飼",
+			"154": "酷",
+			"156": "酵",
+			"158": "鰐",
+			"160": {
+				"126": "酊"
+			},
+			"166": {
+				"42": "鰤",
+				"190": "鯖"
+			},
+			"170": "酢",
+			"172": "憩",
+			"174": "尊",
+			"176": {
+				"200": "酖",
+				"220": "鯊"
+			},
+			"178": {
+				"10": "鮗",
+				"72": "鯱",
+				"188": "醵"
+			},
+			"180": {
+				"88": "鱶",
+				"140": "鮹"
+			},
+			"182": {
+				"44": "靜",
+				"60": "醉",
+				"104": "亂",
+				"124": "餠",
+				"136": "鰌",
+				"172": "憇",
+				"174": "鱒",
+				"234": "辭",
+				"238": "釀"
+			},
+			"184": "漁",
+			"186": "酪",
+			"188": "鮮",
+			"192": {
+				"42": "餾",
+				"76": "鯀",
+				"92": "酥",
+				"106": "醴",
+				"110": "鮫",
+				"122": "鯒",
+				"140": "鰛",
+				"156": "醇",
+				"158": "飫",
+				"186": "鰒",
+				"220": "餔",
+				"234": "饅"
+			},
+			"196": {
+				"14": "醒",
+				"56": "鯤",
+				"94": "醋",
+				"120": "醍",
+				"168": "鯣",
+				"222": "鰉"
+			},
+			"198": {
+				"72": "鰔",
+				"218": "鰄"
+			},
+			"200": "飢",
+			"204": "魯",
+			"206": "成",
+			"208": {
+				"216": "鰯"
+			},
+			"210": {
+				"200": "餒"
+			},
+			"212": {
+				"62": "酩",
+				"200": "鯲"
+			},
+			"214": {
+				"12": "醤"
+			},
+			"218": "飾",
+			"224": {
+				"92": "囓"
+			},
+			"226": {
+				"60": "鱆"
+			},
+			"228": {
+				"46": "釁",
+				"156": "餉"
+			},
+			"232": "飯",
+			"234": "辞",
+			"236": "餓",
+			"238": "醸",
+			"240": {
+				"248": "毯"
+			},
+			"242": {
+				"12": "醪"
+			},
+			"244": {
+				"12": "鮑"
+			},
+			"246": {
+				"174": "鯑"
+			},
+			"250": "蝕",
+			"252": "飽"
+		},
+		"185": "氷",
+		"187": "発",
+		"189": "馬",
+		"191": "食",
+		"193": {
+			"10": "愛",
+			"12": "光",
+			"14": "雑",
+			"16": {
+				"58": "甞",
+				"154": "毓",
+				"248": "韭"
+			},
+			"18": {
+				"74": "亳",
+				"190": "鳧"
+			},
+			"28": "乞",
+			"30": "誉",
+			"36": {
+				"78": "嘗",
+				"88": "耀",
+				"190": "鶉"
+			},
+			"42": "育",
+			"44": "党",
+			"46": "重",
+			"60": "率",
+			"62": "京",
+			"66": {
+				"62": "襃"
+			},
+			"72": "文",
+			"74": "夜",
+			"76": "玄",
+			"86": {
+				"10": "褻"
+			},
+			"88": "爵",
+			"90": "労",
+			"94": "哀",
+			"104": "賞",
+			"106": "畜",
+			"108": "受",
+			"110": "交",
+			"116": {
+				"60": "鞏"
+			},
+			"120": "棄",
+			"122": "堂",
+			"126": "掌",
+			"142": "栄",
+			"152": "就",
+			"156": "享",
+			"166": {
+				"156": "黌"
+			},
+			"170": "斎",
+			"172": "恐",
+			"174": "常",
+			"182": {
+				"10": "鷽"
+			},
+			"184": "敏",
+			"188": "豪",
+			"190": "毫",
+			"192": {
+				"14": "雜",
+				"30": "譽",
+				"44": "黨",
+				"90": "勞",
+				"120": "弃",
+				"142": "榮",
+				"156": "學",
+				"170": "齋",
+				"190": "鵺",
+				"218": "當",
+				"238": "營",
+				"248": "爲",
+				"254": "覺"
+			},
+			"200": "充",
+			"202": "毎",
+			"204": "冥",
+			"206": "戉",
+			"218": "当",
+			"220": "夢",
+			"228": {
+				"232": "斌"
+			},
+			"234": "亨",
+			"236": "壇",
+			"238": "営",
+			"242": {
+				"44": "颪"
+			},
+			"246": {
+				"44": "覓"
+			},
+			"248": "為",
+			"250": "輝",
+			"254": "覚"
+		},
+		"195": {
+			"2": {
+				"10": "廴"
+			},
+			"10": "延",
+			"12": "支",
+			"14": "拝",
+			"24": "赱",
+			"36": {
+				"26": "趁",
+				"138": "迂",
+				"170": "赳"
+			},
+			"42": "遣",
+			"44": "逸",
+			"48": {
+				"30": "敲",
+				"78": "廼"
+			},
+			"60": "迅",
+			"62": "廻",
+			"72": "遊",
+			"76": "繁",
+			"78": "述",
+			"88": "辿",
+			"90": "超",
+			"94": "判",
+			"98": {
+				"24": "廸"
+			},
+			"108": "趣",
+			"122": "通",
+			"124": "赴",
+			"138": "巡",
+			"142": "起",
+			"154": "造",
+			"158": "迭",
+			"170": "遷",
+			"180": {
+				"140": "趙"
+			},
+			"186": "趨",
+			"188": "逐",
+			"194": {
+				"14": "拜"
+			},
+			"206": "越",
+			"218": "建",
+			"222": "廷",
+			"232": "反",
+			"234": "邁",
+			"242": {
+				"10": "蜑",
+				"12": "翅"
+			},
+			"250": "運"
+		},
+		"197": {
+			"2": {
+				"158": "昊"
+			},
+			"10": "白",
+			"14": "星",
+			"16": {
+				"60": "晨",
+				"138": "旱",
+				"168": "昜",
+				"248": "暃"
+			},
+			"18": {
+				"44": "皖",
+				"204": "暄",
+				"218": "晏"
+			},
+			"20": {
+				"78": "魄"
+			},
+			"24": "旧",
+			"26": "影",
+			"28": "映",
+			"34": {
+				"62": "晤"
+			},
+			"36": {
+				"28": "晰",
+				"60": "皐",
+				"120": "昿",
+				"142": "杲",
+				"156": "皓",
+				"168": "暘",
+				"170": "昂",
+				"184": "暾",
+				"188": "曚",
+				"200": "晄",
+				"206": "匙",
+				"238": "曩",
+				"250": "暈",
+				"254": "冐"
+			},
+			"42": "明",
+			"44": "晩",
+			"46": "量",
+			"56": "昆",
+			"60": "早",
+			"62": "景",
+			"64": {
+				"202": "暼"
+			},
+			"74": "更",
+			"76": "楽",
+			"78": "晒",
+			"80": {
+				"152": "曁"
+			},
+			"82": {
+				"44": "冕",
+				"188": "勗"
+			},
+			"88": "曜",
+			"90": "昭",
+			"92": "暇",
+			"94": "昔",
+			"104": "頃",
+			"106": "畠",
+			"108": "最",
+			"110": "曇",
+			"112": {
+				"156": "曠"
+			},
+			"116": {
+				"152": "昵"
+			},
+			"118": {
+				"104": "晢"
+			},
+			"120": "是",
+			"122": "暁",
+			"124": "卓",
+			"126": "拍",
+			"134": {
+				"24": "昧",
+				"28": "皙",
+				"136": "皋"
+			},
+			"136": "曰",
+			"138": "年",
+			"140": "盟",
+			"144": {
+				"120": "昃"
+			},
+			"146": {
+				"28": "暎",
+				"138": "曄"
+			},
+			"148": {
+				"154": "晧"
+			},
+			"152": "暖",
+			"154": "昇",
+			"156": "暴",
+			"158": "替",
+			"160": {
+				"28": "旭",
+				"44": "晁"
+			},
+			"162": {
+				"26": "昴"
+			},
+			"168": "易",
+			"170": "昨",
+			"174": "時",
+			"176": {
+				"24": "昶"
+			},
+			"180": {
+				"236": "曦"
+			},
+			"182": {
+				"206": "晟"
+			},
+			"184": "泉",
+			"186": "旬",
+			"188": "秒",
+			"190": "晴",
+			"192": {
+				"10": "曖",
+				"12": "晃",
+				"60": "暸",
+				"72": "旻",
+				"110": "皎",
+				"204": "暝",
+				"250": "暉"
+			},
+			"194": {
+				"232": "皈"
+			},
+			"196": {
+				"24": "舊",
+				"76": "樂",
+				"122": "曉",
+				"156": "曝",
+				"206": "晉"
+			},
+			"198": {
+				"206": "暹"
+			},
+			"200": "晶",
+			"202": "晦",
+			"204": "暑",
+			"206": "晋",
+			"214": {
+				"10": "旺"
+			},
+			"218": "書",
+			"220": "曙",
+			"222": "皇",
+			"232": "昏",
+			"234": "暗",
+			"246": {
+				"174": "晞"
+			},
+			"248": "照",
+			"250": "暫",
+			"252": "的",
+			"254": "冒"
+		},
+		"199": {
+			"14": "違",
+			"18": {
+				"46": "邃",
+				"190": "鶇",
+				"250": "逡"
+			},
+			"24": "道",
+			"26": "戚",
+			"28": "適",
+			"30": "遠",
+			"32": {
+				"124": "逗"
+			},
+			"34": {
+				"202": "遡"
+			},
+			"36": {
+				"30": "迹",
+				"44": "辷",
+				"60": "遼",
+				"90": "邉",
+				"92": "遐",
+				"106": "逹",
+				"122": "遶",
+				"124": "迸",
+				"138": "遥",
+				"158": "逕",
+				"184": "遏",
+				"190": "鶸",
+				"216": "逾",
+				"218": "逼",
+				"236": "邇",
+				"248": "逖",
+				"250": "皹"
+			},
+			"42": "追",
+			"44": "逃",
+			"48": {
+				"44": "迚",
+				"78": "迺",
+				"238": "遖"
+			},
+			"52": {
+				"78": "逑"
+			},
+			"54": {
+				"222": "逞"
+			},
+			"58": "還",
+			"60": "辻",
+			"64": {
+				"220": "遨",
+				"250": "遘"
+			},
+			"72": "咸",
+			"74": "込",
+			"76": "透",
+			"78": "減",
+			"82": {
+				"62": "迦",
+				"236": "迢"
+			},
+			"84": {
+				"218": "逶"
+			},
+			"88": "退",
+			"90": "辺",
+			"92": "迷",
+			"96": {
+				"124": "遉"
+			},
+			"98": {
+				"10": "逧",
+				"24": "迪"
+			},
+			"104": "近",
+			"106": "達",
+			"108": "這",
+			"112": {
+				"62": "逅"
+			},
+			"120": "遮",
+			"122": "週",
+			"124": "遅",
+			"126": "逝",
+			"128": {
+				"138": "甕",
+				"220": "逋"
+			},
+			"132": {
+				"122": "爬"
+			},
+			"138": "過",
+			"142": "遺",
+			"148": {
+				"76": "遜"
+			},
+			"154": "遇",
+			"156": "選",
+			"158": "送",
+			"160": {
+				"28": "馗"
+			},
+			"168": "速",
+			"170": "迎",
+			"172": "感",
+			"174": "導",
+			"178": {
+				"14": "邏",
+				"188": "遽"
+			},
+			"180": {
+				"72": "遯",
+				"140": "逍"
+			},
+			"182": {
+				"10": "鶫",
+				"72": "逎",
+				"136": "遒"
+			},
+			"184": "邀",
+			"186": "逓",
+			"188": "遭",
+			"190": "遵",
+			"192": {
+				"190": "鴕",
+				"250": "逵"
+			},
+			"196": {
+				"10": "皀",
+				"222": "遑"
+			},
+			"198": {
+				"90": "邊",
+				"124": "遲",
+				"186": "遞"
+			},
+			"200": "迄",
+			"202": "逆",
+			"204": "迫",
+			"212": {
+				"124": "迯"
+			},
+			"216": "逮",
+			"218": "威",
+			"220": "逢",
+			"222": "遍",
+			"224": {
+				"92": "齔"
+			},
+			"228": {
+				"62": "迴",
+				"156": "迥",
+				"188": "邂",
+				"254": "迩"
+			},
+			"232": "返",
+			"234": "避",
+			"238": "蹙",
+			"244": {
+				"12": "皰"
+			},
+			"248": "滅",
+			"250": "連",
+			"252": "途",
+			"254": "遁"
+		},
+		"201": "学",
+		"203": "走",
+		"205": "日",
+		"207": "進",
+		"209": {
+			"10": "弓",
+			"14": "征",
+			"18": {
+				"190": "鵆"
+			},
+			"24": "引",
+			"30": "衛",
+			"32": {
+				"188": "徂"
+			},
+			"34": {
+				"42": "弸",
+				"62": "衙"
+			},
+			"36": {
+				"14": "衢",
+				"62": "鬻",
+				"76": "徽",
+				"88": "很",
+				"92": "粥",
+				"106": "彊",
+				"172": "愈",
+				"184": "徼",
+				"190": "鵜",
+				"200": "弥",
+				"216": "衍",
+				"220": "彷",
+				"232": "徙",
+				"238": "弭",
+				"250": "弘",
+				"254": "彿"
+			},
+			"40": "弔",
+			"42": "徹",
+			"44": "弟",
+			"46": "衝",
+			"48": {
+				"138": "彁"
+			},
+			"60": "徳",
+			"62": "弾",
+			"72": "彳",
+			"74": "夷",
+			"76": "後",
+			"78": "術",
+			"88": "徴",
+			"90": "到",
+			"92": "役",
+			"110": "弛",
+			"120": "従",
+			"122": "街",
+			"124": "張",
+			"134": {
+				"74": "徠"
+			},
+			"142": "桁",
+			"150": {
+				"92": "臻"
+			},
+			"156": "弧",
+			"158": "径",
+			"160": {
+				"254": "弼"
+			},
+			"166": {
+				"154": "黴"
+			},
+			"170": "御",
+			"172": "懲",
+			"174": "待",
+			"182": {
+				"14": "徃"
+			},
+			"184": "微",
+			"186": "復",
+			"190": "衡",
+			"192": {
+				"76": "衒",
+				"106": "疆",
+				"138": "徭",
+				"190": "鵄"
+			},
+			"196": {
+				"186": "徇",
+				"222": "徨"
+			},
+			"200": "弦",
+			"202": "徒",
+			"204": "得",
+			"206": "彼",
+			"208": {
+				"30": "衞",
+				"62": "彈",
+				"120": "從",
+				"158": "徑"
+			},
+			"210": {
+				"108": "弩"
+			},
+			"216": "弱",
+			"218": "律",
+			"222": "往",
+			"228": {
+				"62": "徊",
+				"254": "彌"
+			},
+			"238": "聳",
+			"246": {
+				"44": "覦"
+			},
+			"248": "徘",
+			"250": "強",
+			"252": "徐",
+			"254": "循"
+		},
+		"211": {
+			"2": {
+				"188": "艚"
+			},
+			"10": "舟",
+			"14": "姓",
+			"16": {
+				"140": "盃",
+				"204": "妲",
+				"216": "姪"
+			},
+			"18": {
+				"90": "娚",
+				"104": "嬪"
+			},
+			"20": {
+				"168": "嬾"
+			},
+			"24": "丹",
+			"26": "嫁",
+			"28": "嫡",
+			"30": "船",
+			"32": {
+				"30": "嫂",
+				"188": "姐"
+			},
+			"36": {
+				"26": "婉",
+				"30": "艘",
+				"42": "娟",
+				"44": "姚",
+				"92": "嬌",
+				"106": "艫",
+				"122": "娃",
+				"124": "舮",
+				"154": "艨",
+				"158": "妖",
+				"170": "娜",
+				"172": "恕",
+				"188": "媽",
+				"190": "鵐",
+				"204": "艪",
+				"206": "舵",
+				"220": "舫",
+				"232": "嫩",
+				"234": "妬",
+				"238": "孅",
+				"250": "媾",
+				"252": "娉"
+			},
+			"38": {
+				"28": "艙",
+				"204": "娼",
+				"236": "姶"
+			},
+			"40": "妹",
+			"42": "媼",
+			"44": "航",
+			"46": "婦",
+			"48": {
+				"138": "舸",
+				"202": "姆",
+				"252": "妁"
+			},
+			"54": {
+				"60": "姑",
+				"62": "嬋"
+			},
+			"56": "妣",
+			"58": "媒",
+			"60": "娠",
+			"62": "如",
+			"70": {
+				"94": "嫖"
+			},
+			"74": "始",
+			"78": "妊",
+			"80": {
+				"40": "嫉"
+			},
+			"82": {
+				"44": "娩"
+			},
+			"88": "娘",
+			"90": "副",
+			"92": "般",
+			"94": "妍",
+			"98": {
+				"24": "舳",
+				"90": "嫐",
+				"170": "婢"
+			},
+			"102": {
+				"92": "嬬",
+				"142": "孀",
+				"190": "艝"
+			},
+			"104": "嬰",
+			"106": "画",
+			"108": "奴",
+			"116": {
+				"62": "肇"
+			},
+			"120": "婿",
+			"122": "嬉",
+			"124": "姥",
+			"126": "搬",
+			"128": {
+				"156": "舩",
+				"232": "嫣",
+				"234": "嬖"
+			},
+			"134": {
+				"142": "婪"
+			},
+			"138": "奸",
+			"140": "艦",
+			"142": "案",
+			"144": {
+				"78": "姙"
+			},
+			"152": "媛",
+			"156": "娯",
+			"158": "姻",
+			"160": {
+				"10": "丕",
+				"78": "婬"
+			},
+			"162": {
+				"138": "婀"
+			},
+			"170": "妻",
+			"172": "怒",
+			"174": "姉",
+			"176": {
+				"26": "艀",
+				"220": "娑"
+			},
+			"180": {
+				"236": "艤"
+			},
+			"184": "汝",
+			"186": "姫",
+			"188": "妙",
+			"192": {
+				"76": "舷",
+				"108": "娵",
+				"174": "嫦"
+			},
+			"200": "妥",
+			"202": "妓",
+			"204": "舶",
+			"206": "婆",
+			"208": {
+				"74": "姨",
+				"216": "嫋"
+			},
+			"210": {
+				"106": "畫",
+				"120": "壻",
+				"218": "姦",
+				"238": "孃",
+				"248": "盡"
+			},
+			"220": "妨",
+			"222": "艇",
+			"224": {
+				"14": "歪"
+			},
+			"226": {
+				"46": "艟"
+			},
+			"228": {
+				"10": "娥",
+				"62": "艢"
+			},
+			"230": {
+				"108": "娶"
+			},
+			"232": "姿",
+			"234": "妾",
+			"236": "否",
+			"238": "嬢",
+			"244": {
+				"42": "嫺",
+				"72": "嫗",
+				"142": "嫻"
+			},
+			"246": {
+				"106": "嬶"
+			},
+			"248": "尽",
+			"254": "媚"
+		},
+		"213": {
+			"4": {
+				"12": "歹"
+			},
+			"10": "夕",
+			"12": "死",
+			"14": "雀",
+			"16": {
+				"190": "旄"
+			},
+			"18": {
+				"104": "殯"
+			},
+			"32": {
+				"14": "舛"
+			},
+			"36": {
+				"26": "殄",
+				"92": "旙",
+				"154": "旒",
+				"158": "殀",
+				"168": "殤",
+				"234": "殕"
+			},
+			"42": "望",
+			"48": {
+				"254": "鼇"
+			},
+			"50": {
+				"10": "殪"
+			},
+			"54": {
+				"62": "殫"
+			},
+			"62": "名",
+			"70": {
+				"92": "歿"
+			},
+			"74": "殆",
+			"84": {
+				"106": "旛"
+			},
+			"88": "族",
+			"90": "列",
+			"94": "裂",
+			"96": {
+				"62": "殞"
+			},
+			"110": "施",
+			"120": "旋",
+			"124": "外",
+			"134": {
+				"142": "梦"
+			},
+			"138": "殊",
+			"142": "旗",
+			"150": {
+				"28": "殃"
+			},
+			"172": "忘",
+			"174": "旆",
+			"182": {
+				"14": "旌"
+			},
+			"184": "放",
+			"186": "殉",
+			"188": "少",
+			"190": "毟",
+			"192": {
+				"26": "殍"
+			},
+			"200": "於",
+			"204": "屠",
+			"210": {
+				"24": "旃"
+			},
+			"212": {
+				"236": "殘",
+				"238": "殲"
+			},
+			"216": "旅",
+			"218": "妄",
+			"220": "多",
+			"230": {
+				"232": "氓"
+			},
+			"236": "残",
+			"238": "殱",
+			"248": "烈",
+			"250": "蜂",
+			"254": "殖"
+		},
+		"215": {
+			"4": {
+				"12": "爿"
+			},
+			"10": "王",
+			"12": "将",
+			"16": {
+				"14": "璃",
+				"206": "玻",
+				"248": "琲"
+			},
+			"18": {
+				"218": "珱"
+			},
+			"20": {
+				"78": "瑰",
+				"186": "瓊"
+			},
+			"26": "珍",
+			"32": {
+				"216": "瑜"
+			},
+			"34": {
+				"62": "珸",
+				"106": "瑠"
+			},
+			"36": {
+				"42": "瑚",
+				"56": "琵",
+				"74": "璞",
+				"92": "瑕",
+				"104": "瑣",
+				"106": "璢",
+				"110": "瑙",
+				"120": "牒",
+				"122": "珪",
+				"138": "瑶",
+				"142": "瑾",
+				"186": "臧",
+				"188": "瑪",
+				"200": "珎",
+				"206": "琶",
+				"218": "妝",
+				"222": "珊",
+				"236": "牋",
+				"238": "珥",
+				"250": "琿"
+			},
+			"40": "片",
+			"44": "玩",
+			"46": "理",
+			"48": {
+				"88": "琅",
+				"138": "珂"
+			},
+			"56": "奨",
+			"58": "環",
+			"60": "玲",
+			"70": {
+				"156": "琺"
+			},
+			"72": "主",
+			"76": "素",
+			"78": "球",
+			"80": {
+				"170": "瑯"
+			},
+			"82": {
+				"62": "珈"
+			},
+			"90": "班",
+			"92": "瑞",
+			"94": "表",
+			"104": "責",
+			"106": "牌",
+			"108": "収",
+			"114": {
+				"104": "牘"
+			},
+			"122": "壮",
+			"124": "弄",
+			"134": {
+				"142": "琳"
+			},
+			"138": "珠",
+			"142": "妃",
+			"144": {
+				"236": "玳"
+			},
+			"146": {
+				"28": "瑛"
+			},
+			"152": "嗣",
+			"154": "琉",
+			"158": "状",
+			"170": "邦",
+			"172": "瑟",
+			"174": "寿",
+			"178": {
+				"24": "玖",
+				"62": "珞",
+				"72": "琥"
+			},
+			"180": {
+				"56": "麈",
+				"72": "琢",
+				"156": "瑳"
+			},
+			"186": "麦",
+			"196": {
+				"10": "珀",
+				"254": "瑁"
+			},
+			"200": "斑",
+			"202": "毒",
+			"210": {
+				"104": "瓔"
+			},
+			"214": {
+				"12": "將",
+				"56": "奬",
+				"108": "收",
+				"122": "壯",
+				"174": "壽",
+				"186": "麥"
+			},
+			"222": "琴",
+			"226": {
+				"60": "璋",
+				"172": "瓏"
+			},
+			"232": "版",
+			"234": "碧",
+			"236": "牆",
+			"242": {
+				"12": "翩",
+				"174": "珮"
+			},
+			"254": "現"
+		},
+		"217": "行",
+		"219": "女",
+		"221": "方",
+		"223": "玉",
+		"225": {
+			"10": "欠",
+			"14": "正",
+			"28": "頻",
+			"34": {
+				"62": "齬"
+			},
+			"36": {
+				"24": "歟",
+				"46": "鹸",
+				"186": "罅",
+				"190": "鴟",
+				"252": "丐"
+			},
+			"38": {
+				"158": "歉",
+				"236": "歙"
+			},
+			"42": "肯",
+			"46": "帰",
+			"54": {
+				"190": "舐"
+			},
+			"60": "齢",
+			"78": "渉",
+			"92": "歯",
+			"94": "款",
+			"96": {
+				"104": "罌"
+			},
+			"98": {
+				"106": "罍"
+			},
+			"104": "欣",
+			"116": {
+				"216": "齷"
+			},
+			"122": "址",
+			"126": "捗",
+			"128": {
+				"46": "歛",
+				"250": "欸"
+			},
+			"138": "欽",
+			"140": "盗",
+			"142": "欺",
+			"148": {
+				"10": "缸"
+			},
+			"150": {
+				"138": "欹"
+			},
+			"158": "罐",
+			"168": "整",
+			"170": "卸",
+			"178": {
+				"248": "歔"
+			},
+			"184": "政",
+			"188": "歩",
+			"190": "飲",
+			"196": {
+				"110": "罎"
+			},
+			"198": {
+				"72": "鹹"
+			},
+			"206": "歳",
+			"218": "婚",
+			"224": {
+				"10": "缺",
+				"46": "歸",
+				"60": "齡",
+				"92": "齒",
+				"140": "盜",
+				"190": "飮"
+			},
+			"230": {
+				"12": "齪"
+			},
+			"246": {
+				"174": "欷"
+			},
+			"250": "凪",
+			"252": "齣"
+		},
+		"227": {
+			"2": {
+				"142": "碪",
+				"232": "砥"
+			},
+			"10": "立",
+			"14": "確",
+			"16": {
+				"126": "磚",
+				"190": "麾"
+			},
+			"18": {
+				"120": "碇"
+			},
+			"26": "彰",
+			"28": "砕",
+			"30": "商",
+			"32": {
+				"88": "磑",
+				"188": "砠"
+			},
+			"34": {
+				"42": "硼"
+			},
+			"36": {
+				"14": "碓",
+				"26": "碗",
+				"46": "竕",
+				"56": "砒",
+				"60": "竍",
+				"92": "磐",
+				"104": "斫",
+				"110": "碯",
+				"122": "硅",
+				"124": "站",
+				"142": "磔",
+				"158": "碕",
+				"184": "碣",
+				"188": "毅",
+				"190": "竓",
+				"220": "磅",
+				"234": "碚",
+				"238": "碌",
+				"248": "靡",
+				"250": "竣",
+				"252": "韵"
+			},
+			"38": {
+				"236": "龕"
+			},
+			"44": "競",
+			"46": "童",
+			"54": {
+				"90": "砌",
+				"124": "砧"
+			},
+			"56": "砦",
+			"60": "章",
+			"62": "韻",
+			"70": {
+				"206": "碆"
+			},
+			"74": "硬",
+			"76": "磁",
+			"80": {
+				"120": "礙"
+			},
+			"82": {
+				"236": "韶"
+			},
+			"88": "岩",
+			"90": "剖",
+			"92": "端",
+			"94": "研",
+			"96": {
+				"124": "碵"
+			},
+			"98": {
+				"10": "硲"
+			},
+			"104": "新",
+			"106": "碑",
+			"110": "篭",
+			"112": {
+				"46": "竰",
+				"156": "礦"
+			},
+			"116": {
+				"124": "碾"
+			},
+			"120": "碍",
+			"122": "壁",
+			"126": "拓",
+			"128": {
+				"138": "甓",
+				"250": "竢"
+			},
+			"130": {
+				"42": "磆"
+			},
+			"134": {
+				"142": "礬",
+				"168": "竦"
+			},
+			"140": "硝",
+			"142": "礎",
+			"146": {
+				"56": "硴"
+			},
+			"148": {
+				"10": "矼"
+			},
+			"154": "硫",
+			"156": "砿",
+			"160": {
+				"126": "竚",
+				"190": "竏",
+				"234": "砺",
+				"254": "竡"
+			},
+			"168": "辣",
+			"170": "部",
+			"172": "竜",
+			"174": "帝",
+			"178": {
+				"124": "磴"
+			},
+			"180": {
+				"156": "磋",
+				"236": "礒"
+			},
+			"184": "承",
+			"188": "砂",
+			"190": "靖",
+			"192": {
+				"122": "磽",
+				"184": "竭",
+				"188": "碼",
+				"218": "礑",
+				"234": "礪"
+			},
+			"196": {
+				"76": "礫"
+			},
+			"204": "音",
+			"206": "破",
+			"214": {
+				"104": "磧"
+			},
+			"218": "普",
+			"222": "璧",
+			"226": {
+				"10": "竝",
+				"28": "碎",
+				"44": "竸",
+				"172": "龍",
+				"234": "磊"
+			},
+			"228": {
+				"92": "礇"
+			},
+			"230": {
+				"92": "磬"
+			},
+			"234": "並",
+			"236": "磯",
+			"238": "麿",
+			"242": {
+				"12": "翊",
+				"44": "颯"
+			},
+			"246": {
+				"44": "硯"
+			},
+			"248": "礁",
+			"252": "砲",
+			"254": "親"
+		},
+		"229": {
+			"2": {
+				"190": "鵝",
+				"232": "觝"
+			},
+			"10": "我",
+			"12": "式",
+			"14": "弐",
+			"16": {
+				"14": "雕",
+				"190": "氈"
+			},
+			"18": {
+				"190": "鵤"
+			},
+			"20": {
+				"24": "馘"
+			},
+			"24": "或",
+			"26": "彫",
+			"28": "頷",
+			"30": "園",
+			"34": {
+				"62": "圄"
+			},
+			"36": {
+				"14": "圍",
+				"30": "冏",
+				"58": "圜",
+				"140": "盞",
+				"156": "觚",
+				"190": "鵞",
+				"220": "圃",
+				"232": "嗽"
+			},
+			"40": "戔",
+			"44": "呪",
+			"46": "興",
+			"48": {
+				"24": "觜",
+				"124": "斛"
+			},
+			"52": {
+				"42": "囿"
+			},
+			"56": "麗",
+			"60": "固",
+			"62": "回",
+			"68": {
+				"88": "嚮"
+			},
+			"72": "用",
+			"74": "囚",
+			"76": "畿",
+			"90": "喫",
+			"92": "奥",
+			"94": "剛",
+			"114": {
+				"138": "圉"
+			},
+			"122": "周",
+			"124": "同",
+			"126": "団",
+			"136": "角",
+			"138": "呵",
+			"140": "嘲",
+			"142": "困",
+			"144": {
+				"60": "囹"
+			},
+			"152": "内",
+			"156": "向",
+			"158": "因",
+			"168": "觴",
+			"170": "圏",
+			"172": "惑",
+			"174": "噂",
+			"180": {
+				"12": "觧",
+				"56": "麕"
+			},
+			"188": "解",
+			"190": "鳴",
+			"192": {
+				"190": "鵡",
+				"220": "圀"
+			},
+			"200": "図",
+			"206": "邑",
+			"216": "岡",
+			"220": "囮",
+			"222": "国",
+			"224": {
+				"92": "齠"
+			},
+			"226": {
+				"174": "啻"
+			},
+			"228": {
+				"14": "貳",
+				"62": "囘",
+				"92": "奧",
+				"126": "團",
+				"170": "圈",
+				"200": "圖",
+				"216": "堽",
+				"222": "國",
+				"234": "凾",
+				"250": "觸"
+			},
+			"232": "武",
+			"234": "函",
+			"236": "呟",
+			"238": "囁",
+			"246": {
+				"92": "弑"
+			},
+			"250": "触",
+			"254": "爾"
+		},
+		"231": {
+			"2": {
+				"76": "躱"
+			},
+			"10": "身",
+			"12": "足",
+			"14": "截",
+			"16": {
+				"250": "躅"
+			},
+			"18": {
+				"94": "踪",
+				"120": "聢"
+			},
+			"26": "躁",
+			"30": "跡",
+			"36": {
+				"74": "蹼",
+				"76": "聯",
+				"88": "踟",
+				"90": "蹈",
+				"92": "殷",
+				"106": "聘",
+				"120": "躔",
+				"126": "聹",
+				"158": "跨",
+				"170": "聊",
+				"172": "慇",
+				"190": "躑",
+				"200": "跫",
+				"202": "跿",
+				"216": "踰",
+				"222": "跚",
+				"232": "耻",
+				"234": "跖",
+				"238": "躡",
+				"252": "躙",
+				"254": "蹣"
+			},
+			"38": {
+				"28": "蹌"
+			},
+			"44": "跳",
+			"48": {
+				"88": "踉"
+			},
+			"52": {
+				"108": "跋"
+			},
+			"54": {
+				"190": "聒"
+			},
+			"60": "聴",
+			"62": "路",
+			"64": {
+				"88": "跟",
+				"158": "趺"
+			},
+			"76": "蹊",
+			"78": "踏",
+			"80": {
+				"62": "聟"
+			},
+			"82": {
+				"62": "跏",
+				"106": "踴"
+			},
+			"84": {
+				"204": "馨"
+			},
+			"88": "躍",
+			"90": "剥",
+			"92": "声",
+			"94": "裁",
+			"98": {
+				"124": "軆",
+				"138": "蹕",
+				"142": "踝"
+			},
+			"104": "躓",
+			"106": "戴",
+			"108": "取",
+			"112": {
+				"124": "蹠",
+				"172": "軈"
+			},
+			"114": {
+				"200": "跣"
+			},
+			"116": {
+				"10": "踞",
+				"154": "躇",
+				"252": "跼"
+			},
+			"122": "踊",
+			"126": "撮",
+			"128": {
+				"158": "跌",
+				"234": "躄"
+			},
+			"132": {
+				"152": "蹐"
+			},
+			"134": {
+				"120": "蹂",
+				"136": "躰",
+				"168": "踈"
+			},
+			"142": "栽",
+			"144": {
+				"60": "聆"
+			},
+			"146": {
+				"170": "跪"
+			},
+			"152": "蹴",
+			"156": "聡",
+			"158": "献",
+			"162": {
+				"200": "躋"
+			},
+			"170": "耶",
+			"172": "恥",
+			"174": "射",
+			"180": {
+				"156": "蹉"
+			},
+			"182": {
+				"174": "蹲"
+			},
+			"184": "敢",
+			"186": "距",
+			"188": "躾",
+			"190": "鷺",
+			"192": {
+				"46": "踵",
+				"76": "聨",
+				"120": "軅",
+				"190": "鵈",
+				"232": "趾",
+				"252": "躪"
+			},
+			"194": {
+				"12": "跂"
+			},
+			"200": "耽",
+			"204": "職",
+			"206": "跛",
+			"208": {
+				"10": "躬",
+				"120": "蹤"
+			},
+			"214": {
+				"104": "蹟",
+				"174": "躊"
+			},
+			"220": "聾",
+			"222": "聖",
+			"224": {
+				"10": "蹶",
+				"92": "齲"
+			},
+			"230": {
+				"60": "聽",
+				"92": "聲",
+				"156": "聰",
+				"158": "獻",
+				"236": "踐",
+				"238": "聶"
+			},
+			"232": "民",
+			"234": "蹄",
+			"236": "践",
+			"244": {
+				"72": "躯"
+			},
+			"248": "耿",
+			"250": "載"
+		},
+		"233": "止",
+		"235": "石",
+		"237": "囲",
+		"239": "耳",
+		"241": {
+			"2": {
+				"186": "炬"
+			},
+			"4": {
+				"142": "煕",
+				"188": "燧"
+			},
+			"10": "熱",
+			"16": {
+				"108": "燮"
+			},
+			"18": {
+				"46": "竃",
+				"106": "熔",
+				"222": "瑩"
+			},
+			"26": "燥",
+			"28": "煩",
+			"36": {
+				"46": "竈",
+				"88": "燿",
+				"90": "焔",
+				"122": "塋",
+				"142": "熈",
+				"152": "煖",
+				"168": "煬",
+				"170": "炸",
+				"184": "燉",
+				"188": "燹",
+				"190": "鶯",
+				"204": "熾",
+				"220": "烽",
+				"236": "炯",
+				"250": "燭"
+			},
+			"42": "煎",
+			"44": "蛍",
+			"48": {
+				"252": "灼"
+			},
+			"58": "煤",
+			"60": "燎",
+			"62": "嘘",
+			"64": {
+				"220": "熬"
+			},
+			"66": {
+				"142": "烋"
+			},
+			"78": "煙",
+			"82": {
+				"92": "燬"
+			},
+			"84": {
+				"106": "燔"
+			},
+			"90": "勢",
+			"92": "燐",
+			"96": {
+				"156": "熕"
+			},
+			"106": "畑",
+			"114": {
+				"236": "熹"
+			},
+			"116": {
+				"94": "熨",
+				"250": "煽"
+			},
+			"122": "焼",
+			"124": "燈",
+			"126": "灯",
+			"140": "煥",
+			"142": "焚",
+			"148": {
+				"154": "靠"
+			},
+			"154": "燻",
+			"156": "爆",
+			"158": "燃",
+			"160": {
+				"222": "炳"
+			},
+			"170": "燦",
+			"172": "悲",
+			"178": {
+				"62": "烙"
+			},
+			"184": "烝",
+			"186": "灸",
+			"188": "炒",
+			"190": "鴬",
+			"192": {
+				"60": "煢",
+				"234": "烹"
+			},
+			"196": {
+				"56": "焜",
+				"76": "爍",
+				"222": "煌"
+			},
+			"198": {
+				"106": "燵"
+			},
+			"200": "斐",
+			"204": "煮",
+			"206": "煉",
+			"218": "燼",
+			"220": "炙",
+			"228": {
+				"46": "爨",
+				"62": "烱",
+				"92": "燠",
+				"158": "烟"
+			},
+			"232": "炊",
+			"234": "焙",
+			"240": {
+				"44": "螢",
+				"122": "燒"
+			},
+			"242": {
+				"12": "翡"
+			},
+			"244": {
+				"12": "炮",
+				"40": "煦",
+				"204": "燗",
+				"206": "爛"
+			},
+			"246": {
+				"172": "熄"
+			},
+			"248": "炎",
+			"250": "輩"
+		},
+		"243": {
+			"2": {
+				"44": "翫"
+			},
+			"10": "虫",
+			"12": "羽",
+			"14": "雖",
+			"16": {
+				"58": "蚶",
+				"156": "蛬",
+				"206": "皴",
+				"216": "蛭",
+				"236": "戮",
+				"248": "蜚"
+			},
+			"18": {
+				"92": "轎",
+				"110": "輌"
+			},
+			"20": {
+				"60": "翠"
+			},
+			"26": "轟",
+			"28": "軌",
+			"32": {
+				"138": "蛛",
+				"156": "蜈",
+				"188": "蛆",
+				"216": "蝓",
+				"220": "虻"
+			},
+			"34": {
+				"90": "翦",
+				"106": "輜"
+			},
+			"36": {
+				"26": "蜿",
+				"28": "翆",
+				"30": "轅",
+				"44": "輓",
+				"58": "螻",
+				"60": "蜃",
+				"62": "轡",
+				"76": "辮",
+				"78": "飃",
+				"88": "蚩",
+				"92": "蝦",
+				"104": "軋",
+				"106": "轤",
+				"108": "輟",
+				"110": "轜",
+				"120": "蠣",
+				"122": "蟯",
+				"124": "蟒",
+				"138": "蝸",
+				"140": "蠱",
+				"154": "蟇",
+				"158": "飆",
+				"168": "蝪",
+				"172": "蟋",
+				"184": "蝎",
+				"186": "蝮",
+				"188": "蠡",
+				"190": "鳳",
+				"200": "允",
+				"204": "蟾",
+				"216": "輊",
+				"218": "蝠",
+				"220": "輔",
+				"222": "蝙",
+				"234": "蠧",
+				"236": "輿",
+				"238": "輒",
+				"250": "蠶",
+				"254": "蠅"
+			},
+			"38": {
+				"236": "蛤",
+				"252": "蜍"
+			},
+			"40": "虱",
+			"42": "轍",
+			"44": "風",
+			"48": {
+				"124": "蚪",
+				"138": "軻"
+			},
+			"54": {
+				"60": "蛄",
+				"190": "蛞"
+			},
+			"58": "輪",
+			"60": "蝋",
+			"62": "蝉",
+			"64": {
+				"158": "輦",
+				"220": "螯"
+			},
+			"70": {
+				"94": "飄"
+			},
+			"74": "颱",
+			"76": "繋",
+			"80": {
+				"62": "蜘",
+				"170": "螂"
+			},
+			"84": {
+				"90": "蜊",
+				"106": "蟠",
+				"124": "蝌"
+			},
+			"88": "挨",
+			"90": "蠢",
+			"92": "撃",
+			"96": {
+				"40": "颶"
+			},
+			"98": {
+				"24": "蚰",
+				"76": "螺",
+				"140": "蝟"
+			},
+			"102": {
+				"24": "輛",
+				"92": "蠕",
+				"190": "轌"
+			},
+			"104": "斬",
+			"106": "軸",
+			"108": "蚤",
+			"110": "較",
+			"112": {
+				"170": "軛"
+			},
+			"114": {
+				"28": "蟄"
+			},
+			"116": {
+				"12": "蛯",
+				"124": "輾"
+			},
+			"120": "蝶",
+			"122": "蛙",
+			"124": "弁",
+			"126": "転",
+			"128": {
+				"42": "蝴",
+				"60": "蝨",
+				"154": "蟆",
+				"156": "蚣",
+				"158": "軼"
+			},
+			"130": {
+				"42": "髑",
+				"184": "螫"
+			},
+			"134": {
+				"28": "蜥"
+			},
+			"138": "軒",
+			"140": "蛸",
+			"144": {
+				"60": "蛉"
+			},
+			"146": {
+				"24": "蚯"
+			},
+			"148": {
+				"232": "轣"
+			},
+			"150": {
+				"124": "蠎",
+				"158": "輳",
+				"170": "蜷",
+				"220": "蚌"
+			},
+			"156": "翼",
+			"158": "軽",
+			"160": {
+				"234": "蛎"
+			},
+			"164": {
+				"122": "瓣"
+			},
+			"166": {
+				"190": "蜻"
+			},
+			"172": "恵",
+			"174": "凧",
+			"176": {
+				"26": "蜉"
+			},
+			"178": {
+				"10": "螽",
+				"62": "輅"
+			},
+			"180": {
+				"12": "恙",
+				"56": "轆"
+			},
+			"184": "敷",
+			"186": "輹",
+			"188": "蟻",
+			"192": {
+				"26": "軫",
+				"44": "蛻",
+				"60": "蟀",
+				"92": "轂",
+				"110": "蛟",
+				"122": "螳",
+				"124": "辯",
+				"142": "蠑",
+				"154": "蠖",
+				"174": "蟐",
+				"190": "鴾",
+				"200": "蛩",
+				"204": "螟",
+				"218": "蟷",
+				"222": "蝗",
+				"234": "蠹",
+				"236": "蠏"
+			},
+			"194": {
+				"10": "蜒",
+				"72": "蝣"
+			},
+			"196": {
+				"76": "轢",
+				"168": "蜴",
+				"222": "凰"
+			},
+			"198": {
+				"172": "轗"
+			},
+			"200": "蚊",
+			"204": "習",
+			"206": "蛇",
+			"208": {
+				"24": "蚓"
+			},
+			"216": "輸",
+			"218": "輻",
+			"220": "舞",
+			"222": "轄",
+			"224": {
+				"10": "蠍"
+			},
+			"228": {
+				"12": "軾",
+				"62": "蛔",
+				"72": "蛹",
+				"122": "蜩",
+				"152": "蚋",
+				"188": "蟹"
+			},
+			"230": {
+				"108": "輙",
+				"222": "蟶"
+			},
+			"232": "軟",
+			"234": "翌",
+			"236": "蛾",
+			"238": "輯",
+			"242": {
+				"124": "辨",
+				"126": "轉",
+				"158": "輕",
+				"172": "惠",
+				"250": "蟲"
+			},
+			"244": {
+				"12": "蚫"
+			},
+			"246": {
+				"44": "蜆"
+			},
+			"248": "無",
+			"250": "蚕",
+			"254": "蝿"
+		},
+		"245": {
+			"2": {
+				"10": "气"
+			},
+			"4": {
+				"12": "勹"
+			},
+			"10": "気",
+			"12": "包",
+			"14": "雛",
+			"16": {
+				"206": "皺",
+				"248": "匪"
+			},
+			"18": {
+				"174": "鬧",
+				"222": "閠"
+			},
+			"36": {
+				"44": "閂",
+				"46": "匳",
+				"72": "匸",
+				"78": "閖",
+				"90": "閻",
+				"106": "甸",
+				"156": "閘",
+				"174": "匝",
+				"184": "攷",
+				"188": "闖",
+				"206": "闌",
+				"234": "闢",
+				"236": "戡"
+			},
+			"38": {
+				"236": "閤"
+			},
+			"40": "句",
+			"44": "閲",
+			"48": {
+				"124": "斟",
+				"200": "閇",
+				"254": "鬮"
+			},
+			"54": {
+				"62": "闡",
+				"190": "闊"
+			},
+			"60": "閉",
+			"62": "問",
+			"64": {
+				"72": "匚"
+			},
+			"70": {
+				"190": "濶"
+			},
+			"72": "区",
+			"74": "閃",
+			"78": "匂",
+			"80": {
+				"10": "閊"
+			},
+			"88": "医",
+			"90": "勘",
+			"92": "殴",
+			"96": {
+				"142": "匱"
+			},
+			"104": "匠",
+			"108": "警",
+			"114": {
+				"156": "闔"
+			},
+			"116": {
+				"26": "髱",
+				"204": "闍"
+			},
+			"122": "閨",
+			"124": "開",
+			"128": {
+				"136": "凵",
+				"138": "甌",
+				"172": "閹",
+				"238": "閭"
+			},
+			"136": "凶",
+			"142": "閑",
+			"148": {
+				"44": "鬩"
+			},
+			"156": "閧",
+			"158": "関",
+			"160": {
+				"156": "匣"
+			},
+			"168": "匿",
+			"170": "邸",
+			"172": "悶",
+			"174": "闘",
+			"176": {
+				"14": "匯"
+			},
+			"184": "敬",
+			"186": "閣",
+			"188": "驚",
+			"190": "鴎",
+			"192": {
+				"72": "閔",
+				"174": "閙"
+			},
+			"198": {
+				"106": "闥"
+			},
+			"200": "匹",
+			"204": "間",
+			"206": "欄",
+			"212": {
+				"188": "尠",
+				"200": "閼"
+			},
+			"214": {
+				"10": "匡",
+				"186": "麹"
+			},
+			"218": "匐",
+			"220": "匍",
+			"222": "閏",
+			"224": {
+				"10": "闕"
+			},
+			"228": {
+				"24": "閾",
+				"92": "粤",
+				"158": "氤"
+			},
+			"232": "欧",
+			"234": "闇",
+			"236": "閥",
+			"238": "聞",
+			"242": {
+				"12": "翳"
+			},
+			"244": {
+				"10": "氣",
+				"72": "區",
+				"88": "醫",
+				"92": "毆",
+				"136": "匈",
+				"156": "鬨",
+				"158": "關",
+				"174": "鬪",
+				"232": "歐"
+			},
+			"246": {
+				"158": "闃"
+			},
+			"250": "勾"
+		},
+		"247": {
+			"2": {
+				"254": "瞋"
+			},
+			"6": {
+				"108": "矍"
+			},
+			"10": "自",
+			"14": "雅",
+			"24": "面",
+			"26": "眺",
+			"28": "顛",
+			"32": {
+				"188": "爼",
+				"250": "眸"
+			},
+			"36": {
+				"14": "雎",
+				"26": "眄",
+				"56": "眥",
+				"122": "睚",
+				"154": "瞿",
+				"158": "眷",
+				"188": "矇",
+				"190": "鴉",
+				"200": "眈",
+				"204": "瞻",
+				"222": "瞎",
+				"234": "睫",
+				"250": "覯",
+				"252": "盻",
+				"254": "瞞"
+			},
+			"44": "見",
+			"46": "窺",
+			"48": {
+				"24": "眦"
+			},
+			"52": {
+				"254": "矗"
+			},
+			"58": "懸",
+			"60": "瞭",
+			"64": {
+				"72": "睿"
+			},
+			"76": "県",
+			"78": "睡",
+			"88": "眼",
+			"90": "刈",
+			"92": "殺",
+			"94": "刹",
+			"96": {
+				"142": "瞶"
+			},
+			"98": {
+				"10": "谺",
+				"170": "睥"
+			},
+			"104": "費",
+			"106": "鼻",
+			"108": "叡",
+			"114": {
+				"104": "覿"
+			},
+			"116": {
+				"152": "眤",
+				"204": "睹",
+				"238": "矚"
+			},
+			"124": "算",
+			"126": "攫",
+			"134": {
+				"24": "眛"
+			},
+			"138": "看",
+			"140": "肴",
+			"142": "植",
+			"152": "覗",
+			"156": "睨",
+			"158": "臭",
+			"166": {
+				"190": "睛"
+			},
+			"170": "邪",
+			"172": "息",
+			"174": "希",
+			"182": {
+				"10": "鷆"
+			},
+			"184": "瞥",
+			"186": "覧",
+			"188": "着",
+			"190": "眉",
+			"192": {
+				"10": "瞹",
+				"76": "眩",
+				"110": "爻",
+				"122": "瞠",
+				"190": "鷏",
+				"204": "瞑"
+			},
+			"200": "瞬",
+			"202": "瞽",
+			"204": "瞼",
+			"208": {
+				"44": "睇"
+			},
+			"212": {
+				"188": "眇"
+			},
+			"220": "盲",
+			"222": "璽",
+			"230": {
+				"184": "瞰"
+			},
+			"232": "眠",
+			"234": "瞳",
+			"244": {
+				"12": "靤"
+			},
+			"246": {
+				"44": "靦",
+				"76": "縣",
+				"186": "覽"
+			},
+			"250": "睦"
+		},
+		"249": "火",
+		"251": "車",
+		"253": "門",
+		"255": "目"
+	};
+
+/***/ }
+/******/ ]);
+//# sourceMappingURL=bundle.js.map

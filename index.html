@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Unicode点字変換</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 8px;
+      }
+      #wrapper {
+        width: 600px;
+        max-width: calc(100% - 16px);
+      }
+      #wrapper > div {
+        width: 100%;
+        text-align: center;
+      }
+      #wrapper textarea {
+        width: 100%;
+        height: 120px;
+      }
+      #wrapper input[type="button"] {
+        width: 45%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Unicode点字変換</h1>
+    <p>モジュール<a href="https://github.com/uhyo/tenji">tenji</a>を使って日本語テキストと点字を相互に変換します。</p>
+    <p>
+      <label>
+        <input id="kantenji-flag" type="checkbox">
+        漢点字モード
+      </label>
+    </p>
+    <div id="wrapper">
+      <div>
+        <textarea id="jp-text" placeholder="ここに日本語を入力"></textarea>
+      </div>
+      <div>
+        <input id="to-button" type="button" value="↓点字に変換↓">
+        <input id="from-button" type="button" value="↑点字から変換↑">
+      </div>
+      <div>
+        <textarea id="tenji-text" placeholder="ここに点字を入力"></textarea>
+      </div>
+    </div>
+    <p><a href="https://github.com/uhyo/tenji-web">Github</a></p>
+    <p>Found a bug? <a href="https://github.com/uhyo/tenji/issues">Open an issue</a> now!</p>
+    <script src="./bundle.js"></script>
+  </body>
+</html>
+
