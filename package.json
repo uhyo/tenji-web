@@ -11,8 +11,7 @@
     "watch": "npm-run-all --parallel watch:*",
     "watch:tsc": "tsc --watch",
     "watch:webpack": "webpack-dev-server",
-    "github-publish": "npm-run-all build github-publish:push",
-    "github-publish:push": "git subtree push --prefix=dist origin gh-pages",
+    "github-publish": "git subtree push --prefix=dist origin gh-pages",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
