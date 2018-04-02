@@ -1,31 +1,29 @@
 "use strict";
 const path=require('path');
 const webpack=require('webpack');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports={
+    mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
     devtool: "source-map",
-    entry: {
-        js: "./lib-dist/index.js",
-        html: "./html/index.html"
-    },
+    entry: './lib-dist/index.js',
     output: {
         path: path.join(__dirname, "dist"),
         filename: "bundle.js",
         //sourceMapFilename: "[file].map"
     },
     module: {
-        loaders: [
+        rules: [
             {
                 test: /\.html$/,
-                loader: "file?name=[name].[ext]"
-            },
-            {
-                test: /\.json$/,
-                loader: "json",
+                use: "file-loader?name=[name].[ext]"
             }
         ]
     },
     plugins: [
+        new CopyWebpackPlugin([
+            './html/index.html',
+        ]),
     ],
     devServer: {
         contentBase: "./dist",
